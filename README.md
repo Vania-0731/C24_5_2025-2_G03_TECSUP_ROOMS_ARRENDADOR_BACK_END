@@ -49,7 +49,7 @@ npm install
 ### **3. Configurar MySQL**
 ```sql
 -- Crear base de datos
-CREATE DATABASE tecsup_rooms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE tecsup_rooms;
 ```
 
 ### **4. Configurar variables de entorno**
