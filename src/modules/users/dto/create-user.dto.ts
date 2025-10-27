@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, IsOptional, IsNumber, Min, Max, Length, Matches, IsBoolean } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsNumber, Min, Max, Length, Matches, IsBoolean, IsEnum } from 'class-validator';
+import { UserRole } from '../entities/user.entity';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'Nombre completo del arrendador' })
@@ -47,4 +48,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;
+
+  @ApiPropertyOptional({ description: 'Rol del usuario', enum: UserRole, default: UserRole.TENANT })
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'role debe ser uno de: tenant, landlord' })
+  role?: UserRole;
 }

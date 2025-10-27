@@ -75,4 +75,24 @@ export class AuthController {
     // En un sistema más complejo, aquí invalidarías el token
     return { message: 'Sesión cerrada exitosamente' };
   }
+
+  @Post('sync/google')
+  @ApiOperation({ summary: 'Sincronizar usuario desde NextAuth (Google OAuth)' })
+  @ApiResponse({ status: 201, description: 'Usuario creado' })
+  @ApiResponse({ status: 200, description: 'Usuario actualizado o ya existente' })
+  async syncGoogleUser(@Body() payload: any, @Res() res: Response) {
+    const { user, created, updated } = await this.authService.syncGoogleUserFromNextAuth(payload);
+
+    const registrationComplete = !!(user.phone && user.dni && user.address);
+
+    if (created) {
+      return res.status(201).json({ message: 'Usuario creado', userId: user.id, user, registrationComplete });
+    }
+
+    if (updated) {
+      return res.status(200).json({ message: 'Usuario actualizado', userId: user.id, user, registrationComplete });
+    }
+
+    return res.status(200).json({ message: 'Usuario ya existía', userId: user.id, user, registrationComplete });
+  }
 }

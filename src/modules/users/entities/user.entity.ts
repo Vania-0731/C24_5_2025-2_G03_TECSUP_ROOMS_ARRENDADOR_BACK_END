@@ -2,6 +2,11 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { ApiProperty } from '@nestjs/swagger';
 import { Property } from '../../properties/entities/property.entity';
 
+export enum UserRole {
+  TENANT = 'tenant',
+  LANDLORD = 'landlord',
+}
+
 @Entity('users')
 export class User {
   @ApiProperty({ description: 'ID único del usuario' })
@@ -16,12 +21,16 @@ export class User {
   @Column({ unique: true, length: 255 })
   email: string;
 
+  @ApiProperty({ description: 'Rol del usuario', enum: UserRole, example: UserRole.TENANT })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.TENANT })
+  role: UserRole;
+
   @ApiProperty({ description: 'Número de teléfono (9 dígitos)' })
   @Column({ length: 9 })
   phone: string;
 
   @ApiProperty({ description: 'DNI (8 dígitos)' })
-  @Column({ length: 8, unique: true })
+  @Column({ length: 8 })
   dni: string;
 
   @ApiProperty({ description: 'Dirección completa del arrendador' })

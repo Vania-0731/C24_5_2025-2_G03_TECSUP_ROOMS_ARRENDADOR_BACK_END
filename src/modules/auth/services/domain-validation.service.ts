@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { UserRole } from '../../users/entities/user.entity';
 
 export enum UserType {
   LANDLORD = 'landlord',
@@ -57,6 +58,21 @@ export class DomainValidationService {
     }
 
     return true;
+  }
+
+  // Inferencia simple de rol basada en dominio del email
+  // @tecsup.edu.pe => TENANT
+  // cualquier otro dominio => LANDLORD
+  inferRole(email: string): UserRole {
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!domain) {
+      // fallback conservador
+      return UserRole.LANDLORD;
+    }
+    if (domain === 'tecsup.edu.pe') {
+      return UserRole.TENANT;
+    }
+    return UserRole.LANDLORD;
   }
 
   getLandlordRestrictions() {
