@@ -1,15 +1,19 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
+import { LandlordProfile } from '../../landlords/entities/landlord.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
+import { UpdateUserLandlordDto } from '../dto/update-user-landlord.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -66,7 +70,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({
       where: { id },
       select: [
-        'id', 'fullName', 'email', 'phone', 'dni', 'address', 'propertiesCount',
+        'id', 'fullName', 'email', 'phone', 'dni', 'address', 'role', 'propertiesCount',
         'profilePicture', 'googleId', 'isVerified', 'isTwoFactorEnabled',
         'notificationSettings', 'appPreferences', 'createdAt', 'updatedAt'
       ],
@@ -93,6 +97,71 @@ export class UsersService {
     };
   }
 
+  async updateUserAndLandlord(
+    id: string,
+    updateData: UpdateUserLandlordDto
+  ): Promise<{ message: string; user: User }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const user = await queryRunner.manager.findOne(User, {
+        where: { id },
+      });
+
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      if (updateData.user) {
+        Object.assign(user, updateData.user);
+      }
+
+      // Persist landlord data in landlords table
+      if (updateData.landlord) {
+        const landlordRepo = queryRunner.manager.getRepository(LandlordProfile);
+        let landlord = await landlordRepo.findOne({ where: { userId: id } });
+
+        // Allow both propertiesCount (DTO actual) and propertyCount (entity field)
+        const { phone, dni, address } = updateData.landlord as any;
+        const propsCount = (updateData.landlord as any).propertiesCount ?? (updateData.landlord as any).propertyCount;
+
+        if (!landlord) {
+          landlord = landlordRepo.create({
+            userId: id,
+            phone: phone ?? '',
+            dni: dni ?? '',
+            address: address ?? '',
+            propertyCount: (propsCount ?? '').toString(),
+          });
+        } else {
+          if (phone !== undefined) landlord.phone = phone;
+          if (dni !== undefined) landlord.dni = dni;
+          if (address !== undefined) landlord.address = address;
+          if (propsCount !== undefined) landlord.propertyCount = String(propsCount);
+        }
+
+        await landlordRepo.save(landlord);
+      }
+
+      const updatedUser = await queryRunner.manager.save(User, user);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: 'Datos actualizados exitosamente',
+        user: updatedUser,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
 
   async checkRegistrationStatus(id: string): Promise<{
     isComplete: boolean;
@@ -101,44 +170,75 @@ export class UsersService {
     completionPercentage: number;
     nextSteps: string[];
   }> {
-    const user = await this.findById(id);
+    // Simplificado: determinar según el rol del usuario qué perfil validar
     const completedFields: string[] = [];
     const missingFields: string[] = [];
     const nextSteps: string[] = [];
 
-    // Verificar campos obligatorios
-    if (user.fullName && user.fullName.trim() !== '') completedFields.push('fullName');
+    const user = await this.userRepository.findOne({ where: { id }, select: ['id', 'fullName', 'email', 'role'] });
+    if (user?.fullName && user.fullName.trim() !== '') completedFields.push('fullName');
     else missingFields.push('fullName');
-
-    if (user.email && user.email.trim() !== '') completedFields.push('email');
+    if (user?.email && user.email.trim() !== '') completedFields.push('email');
     else missingFields.push('email');
 
-    if (user.phone && user.phone.trim() !== '') completedFields.push('phone');
-    else {
-      missingFields.push('phone');
-      nextSteps.push('Completar número de teléfono');
+    let isComplete = false;
+
+    if (user?.role === 'landlord') {
+      const landlord = await this.dataSource.getRepository(LandlordProfile).findOne({ where: { userId: id } });
+      isComplete = !!(
+        landlord &&
+        landlord.phone && landlord.phone.trim() !== '' &&
+        landlord.dni && landlord.dni.trim() !== '' &&
+        landlord.address && landlord.address.trim() !== '' &&
+        landlord.propertyCount !== undefined && String(landlord.propertyCount).trim() !== ''
+      );
+
+      if (landlord) {
+        if (landlord.phone && landlord.phone.trim() !== '') completedFields.push('landlord.phone');
+        else { missingFields.push('landlord.phone'); nextSteps.push('Completar teléfono de arrendador'); }
+        if (landlord.dni && landlord.dni.trim() !== '') completedFields.push('landlord.dni');
+        else { missingFields.push('landlord.dni'); nextSteps.push('Agregar DNI de arrendador'); }
+        if (landlord.address && landlord.address.trim() !== '') completedFields.push('landlord.address');
+        else { missingFields.push('landlord.address'); nextSteps.push('Proporcionar dirección de arrendador'); }
+        if (String(landlord.propertyCount || '').trim() !== '') completedFields.push('landlord.propertyCount');
+        else { missingFields.push('landlord.propertyCount'); nextSteps.push('Indicar cantidad de propiedades'); }
+      }
+    } else if (user?.role === 'tenant') {
+      const tenant = await this.dataSource.getRepository(Tenant).findOne({ where: { userId: id } });
+      isComplete = !!(
+        tenant &&
+        tenant.phone && tenant.phone.trim() !== '' &&
+        tenant.code && tenant.code.trim() !== '' &&
+        tenant.carrer && tenant.carrer.trim() !== '' &&
+        tenant.cicle && tenant.cicle.trim() !== '' &&
+        tenant.monthly_budget !== undefined &&
+        tenant.origin_department && tenant.origin_department.trim() !== ''
+      );
+
+      if (tenant) {
+        if (tenant.phone && tenant.phone.trim() !== '') completedFields.push('tenant.phone');
+        else { missingFields.push('tenant.phone'); nextSteps.push('Completar teléfono de inquilino'); }
+        if (tenant.code && tenant.code.trim() !== '') completedFields.push('tenant.code');
+        else { missingFields.push('tenant.code'); nextSteps.push('Agregar código de estudiante'); }
+        if (tenant.carrer && tenant.carrer.trim() !== '') completedFields.push('tenant.carrer');
+        else { missingFields.push('tenant.carrer'); nextSteps.push('Agregar carrera'); }
+        if (tenant.cicle && tenant.cicle.trim() !== '') completedFields.push('tenant.cicle');
+        else { missingFields.push('tenant.cicle'); nextSteps.push('Agregar ciclo'); }
+        if (tenant.monthly_budget !== undefined) completedFields.push('tenant.monthly_budget');
+        else { missingFields.push('tenant.monthly_budget'); nextSteps.push('Indicar presupuesto mensual'); }
+        if (tenant.origin_department && tenant.origin_department.trim() !== '') completedFields.push('tenant.origin_department');
+        else { missingFields.push('tenant.origin_department'); nextSteps.push('Indicar departamento de origen'); }
+      }
     }
 
-    if (user.dni && user.dni.trim() !== '') completedFields.push('dni');
-    else {
-      missingFields.push('dni');
-      nextSteps.push('Agregar DNI');
-    }
-
-    if (user.address && user.address.trim() !== '') completedFields.push('address');
-    else {
-      missingFields.push('address');
-      nextSteps.push('Proporcionar dirección completa');
-    }
-
-    const completionPercentage = Math.round((completedFields.length / (completedFields.length + missingFields.length)) * 100);
+    const completionPercentage = isComplete ? 100 : Math.round((completedFields.length / (completedFields.length + missingFields.length || 1)) * 100);
 
     return {
-      isComplete: missingFields.length === 0,
+      isComplete,
       completedFields,
       missingFields,
       completionPercentage,
-      nextSteps
+      nextSteps,
     };
   }
 

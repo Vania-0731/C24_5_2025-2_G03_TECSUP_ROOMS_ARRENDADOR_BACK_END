@@ -3,6 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/services/users.service';
 import { DomainValidationService, UserType } from './domain-validation.service';
 import { User, UserRole } from '../../users/entities/user.entity';
+import { TenantsService } from '../../tenants/services/tenants.service';
+import { LandlordsService } from '../../landlords/services/landlords.service';
 
 @Injectable()
 export class AuthService {
@@ -10,6 +12,8 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly domainValidationService: DomainValidationService,
+    private readonly tenantsService: TenantsService,
+    private readonly landlordsService: LandlordsService,
   ) {}
 
   async validateGoogleUser(profile: any): Promise<User> {
@@ -19,13 +23,19 @@ export class AuthService {
     const fullName = `${name.givenName} ${name.familyName}`;
     const profilePicture = photos[0]?.value;
 
-    // Validar dominio para arrendadores (cualquier dominio permitido por ahora)
-    this.domainValidationService.validateEmailDomain(email, UserType.LANDLORD);
+    // Inferir rol por dominio y validar según rol inferido
+    const desiredRole = this.domainValidationService.inferRole(email);
+    try {
+      this.domainValidationService.validateEmailDomain(
+        email,
+        desiredRole === UserRole.TENANT ? UserType.TENANT : UserType.LANDLORD,
+      );
+    } catch (_) {}
 
     let user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      // Crear nuevo usuario arrendador con Google OAuth
+      // Crear nuevo usuario con Google OAuth segun rol inferido
       try {
         user = await this.usersService.create({
           fullName,
@@ -37,6 +47,7 @@ export class AuthService {
           address: '', // Se completará en el formulario de registro
           propertiesCount: 0,
           isVerified: true, // Los usuarios de Google están verificados por defecto
+          role: desiredRole,
         });
       } catch (e) {
         if (e instanceof ConflictException) {
@@ -47,6 +58,7 @@ export class AuthService {
               googleId: id,
               profilePicture,
               isVerified: true,
+              role: desiredRole,
             });
           } else if (existing) {
             user = existing;
@@ -57,14 +69,26 @@ export class AuthService {
           throw e;
         }
       }
-    } else if (!user.googleId) {
-      // Si el usuario existe pero no tiene googleId, lo actualizamos
-      user = await this.usersService.update(user.id, {
-        googleId: id,
-        profilePicture,
-        isVerified: true,
-      });
+    } else {
+      // Si el usuario existe, asegurar googleId y rol actualizado
+      const updates: Partial<User> = {} as any;
+      if (!user.googleId) updates.googleId = id;
+      if (profilePicture && user.profilePicture !== profilePicture) updates.profilePicture = profilePicture;
+      if (!user.isVerified) updates.isVerified = true;
+      if (user.role !== desiredRole) updates.role = desiredRole;
+      if (Object.keys(updates).length > 0) {
+        user = await this.usersService.update(user.id, updates);
+      }
     }
+
+    // Ensure profile based on role
+    try {
+      if (user.role === UserRole.TENANT) {
+        await this.tenantsService.ensureExistsForUser(user.id);
+      } else if (user.role === UserRole.LANDLORD) {
+        await this.landlordsService.ensureExistsForUser(user.id);
+      }
+    } catch (_) {}
 
     return user;
   }
@@ -153,6 +177,15 @@ export class AuthService {
         updated = true;
       }
     }
+
+    // Ensure related profile exists according to role
+    try {
+      if (user.role === UserRole.TENANT) {
+        await this.tenantsService.ensureExistsForUser(user.id);
+      } else if (user.role === UserRole.LANDLORD) {
+        await this.landlordsService.ensureExistsForUser(user.id);
+      }
+    } catch (_) {}
 
     return { user, created, updated };
   }

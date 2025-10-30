@@ -6,11 +6,15 @@ import { AuthService } from '../services/auth.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { RegisterLandlordDto } from '../dto/register-landlord.dto';
+import { UsersService } from '../../users/services/users.service';
 
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -82,17 +86,21 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Usuario actualizado o ya existente' })
   async syncGoogleUser(@Body() payload: any, @Res() res: Response) {
     const { user, created, updated } = await this.authService.syncGoogleUserFromNextAuth(payload);
+    const { access_token } = await this.authService.generateJwtToken(user);
 
-    const registrationComplete = !!(user.phone && user.dni && user.address);
+    const status = await this.usersService.checkRegistrationStatus(user.id);
+    const minimalUser = { id: user.id, role: user.role };
+
+    const payloadResp = { user: minimalUser, access_token, registrationComplete: !!status.isComplete } as any;
 
     if (created) {
-      return res.status(201).json({ message: 'Usuario creado', userId: user.id, user, registrationComplete });
+      return res.status(201).json(payloadResp);
     }
 
     if (updated) {
-      return res.status(200).json({ message: 'Usuario actualizado', userId: user.id, user, registrationComplete });
+      return res.status(200).json(payloadResp);
     }
 
-    return res.status(200).json({ message: 'Usuario ya existía', userId: user.id, user, registrationComplete });
+    return res.status(200).json(payloadResp);
   }
 }

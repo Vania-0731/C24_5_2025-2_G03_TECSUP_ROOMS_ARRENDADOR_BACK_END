@@ -1,9 +1,10 @@
-import { Controller, Get, Put, UseGuards, Req, Body } from '@nestjs/common';
+import { Controller, Get, Put, UseGuards, Req, Body, Param, BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { UsersService } from '../services/users.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../entities/user.entity';
+import { UpdateUserLandlordDto } from '../dto/update-user-landlord.dto';
 
 @ApiTags('Usuarios')
 @Controller('users')
@@ -184,5 +185,42 @@ export class UsersController {
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   async getRegistrationStatus(@Req() req: Request & { user: User }) {
     return await this.usersService.checkRegistrationStatus(req.user.id);
+  }
+
+  @Put('me/profile')
+  @ApiOperation({
+    summary: 'Actualizar perfil del usuario autenticado (usuario + landlord) en una sola transacción',
+    description: 'Actualiza el nombre del usuario y los datos de landlord para el usuario autenticado sin requerir ID en la ruta.'
+  })
+  @ApiBody({ type: UpdateUserLandlordDto })
+  @ApiResponse({ status: 200, description: 'Datos actualizados exitosamente' })
+  async updateMyProfile(
+    @Req() req: Request & { user: User },
+    @Body(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false })) updateData: UpdateUserLandlordDto,
+  ) {
+    return await this.usersService.updateUserAndLandlord(req.user.id, updateData);
+  }
+
+  @Put(':id/profile')
+  @ApiOperation({ 
+    summary: 'Actualizar perfil (usuario + landlord) en una sola transacción',
+    description: 'Actualiza el nombre del usuario y los datos de landlord (phone, dni, address, propertiesCount) atómicamente.'
+  })
+  @ApiBody({ 
+    type: UpdateUserLandlordDto,
+  })
+  @ApiResponse({ status: 200, description: 'Datos actualizados exitosamente' })
+  @ApiResponse({ status: 400, description: 'Solicitud inválida' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  async updateUserAndLandlord(
+    @Req() req: Request & { user: User },
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false })) updateData: UpdateUserLandlordDto,
+  ) {
+    if (req.user.id !== id) {
+      throw new BadRequestException('Solo puedes actualizar tu propio perfil');
+    }
+    return await this.usersService.updateUserAndLandlord(id, updateData);
   }
 }

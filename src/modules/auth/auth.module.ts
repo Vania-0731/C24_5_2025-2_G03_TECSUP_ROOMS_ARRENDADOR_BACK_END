@@ -9,10 +9,14 @@ import { DomainValidationService } from './services/domain-validation.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { TenantsModule } from '../tenants/tenants.module';
+import { LandlordsModule } from '../landlords/landlords.module';
 
 @Module({
   imports: [
     UsersModule,
+    TenantsModule,
+    LandlordsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
