@@ -25,21 +25,7 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.TENANT })
   role: UserRole;
 
-  @ApiProperty({ description: 'Número de teléfono (9 dígitos)' })
-  @Column({ length: 9 })
-  phone: string;
-
-  @ApiProperty({ description: 'DNI (8 dígitos)' })
-  @Column({ length: 8 })
-  dni: string;
-
-  @ApiProperty({ description: 'Dirección completa del arrendador' })
-  @Column({ length: 500 })
-  address: string;
-
-  @ApiProperty({ description: 'Número de propiedades que posee', required: false })
-  @Column({ type: 'int', default: 0 })
-  propertiesCount?: number;
+  
 
   @ApiProperty({ description: 'URL de la foto de perfil', required: false })
   @Column({ nullable: true })

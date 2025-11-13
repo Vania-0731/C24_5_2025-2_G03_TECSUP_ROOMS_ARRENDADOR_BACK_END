@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, IsOptional, IsNumber, Min, Max, Length, Matches, IsBoolean, IsEnum } from 'class-validator';
+import { IsEmail, IsString, IsOptional, Length, IsBoolean, IsEnum } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
 
 export class CreateUserDto {
@@ -11,28 +11,6 @@ export class CreateUserDto {
   @ApiProperty({ description: 'Email del arrendador (cualquier dominio)' })
   @IsEmail({}, { message: 'Debe proporcionar un email válido' })
   email: string;
-
-  @ApiProperty({ description: 'Número de teléfono (9 dígitos)' })
-  @IsString()
-  @Matches(/^[0-9]{9}$/, { message: 'El teléfono debe tener exactamente 9 dígitos' })
-  phone: string;
-
-  @ApiProperty({ description: 'DNI (8 dígitos)' })
-  @IsString()
-  @Matches(/^[0-9]{8}$/, { message: 'El DNI debe tener exactamente 8 dígitos' })
-  dni: string;
-
-  @ApiProperty({ description: 'Dirección completa del arrendador' })
-  @IsString()
-  @Length(10, 500, { message: 'La dirección debe tener entre 10 y 500 caracteres' })
-  address: string;
-
-  @ApiPropertyOptional({ description: 'Número de propiedades que posee', default: 0 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0, { message: 'El número de propiedades no puede ser negativo' })
-  @Max(999, { message: 'El número de propiedades no puede ser mayor a 999' })
-  propertiesCount?: number;
 
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @IsOptional()
