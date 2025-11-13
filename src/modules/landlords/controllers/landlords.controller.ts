@@ -4,6 +4,7 @@ import { LandlordsService } from '../services/landlords.service';
 import { CreateLandlordDto } from '../dto/create-landlord.dto';
 import { UpdateLandlordDto } from '../dto/update-landlord.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ForbiddenException } from '@nestjs/common';
 
 @ApiTags('Landlords')
 @ApiBearerAuth()
@@ -29,17 +30,32 @@ export class LandlordsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    const entity = await this.service.findOne(id);
+    const requesterId = req.user?.id || req.user?.sub;
+    if (entity.userId !== requesterId) {
+      throw new ForbiddenException('No tienes permisos para acceder a este recurso');
+    }
+    return entity;
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateLandlordDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateLandlordDto, @Req() req: any) {
+    const entity = await this.service.findOne(id);
+    const requesterId = req.user?.id || req.user?.sub;
+    if (entity.userId !== requesterId) {
+      throw new ForbiddenException('No tienes permisos para actualizar este recurso');
+    }
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const entity = await this.service.findOne(id);
+    const requesterId = req.user?.id || req.user?.sub;
+    if (entity.userId !== requesterId) {
+      throw new ForbiddenException('No tienes permisos para eliminar este recurso');
+    }
     return this.service.remove(id);
   }
 }
