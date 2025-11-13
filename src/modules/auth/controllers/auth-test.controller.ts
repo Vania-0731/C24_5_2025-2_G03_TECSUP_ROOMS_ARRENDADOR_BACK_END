@@ -47,13 +47,10 @@ export class AuthTestController {
           id: user.id,
           fullName: user.fullName,
           email: user.email,
-          phone: user.phone,
-          dni: user.dni,
-          address: user.address,
           profilePicture: user.profilePicture,
           isVerified: user.isVerified,
         },
-        registrationComplete: !!(user.phone && user.dni && user.address),
+        registrationComplete: true,
       },
       instructions: {
         message: 'Guarda este accessToken para usarlo en Swagger',
@@ -65,13 +62,7 @@ export class AuthTestController {
           '5. Haz clic en "Authorize" y luego "Close"',
           '6. Ahora puedes probar todos los endpoints protegidos',
         ],
-        nextSteps: user.phone && user.dni && user.address 
-          ? ['Tu registro está completo', 'Puedes usar todos los endpoints']
-          : [
-              'Tu registro NO está completo',
-              'Debes completar tu registro usando el endpoint POST /auth/complete-registration',
-              'Usa el token de arriba para autorizar en Swagger',
-            ],
+        nextSteps: ['Puedes usar los endpoints protegidos con el token generado'],
       },
     });
   }
