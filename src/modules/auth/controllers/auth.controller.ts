@@ -36,7 +36,8 @@ export class AuthController {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     
     // Si el usuario no tiene todos los datos completos, redirigir al formulario de registro
-    if (!user.phone || !user.dni || !user.address) {
+    const status = await this.usersService.checkRegistrationStatus(user.id);
+    if (!status.isComplete) {
       res.redirect(`${frontendUrl}/complete-registration?token=${result.access_token}`);
     } else {
       res.redirect(`${frontendUrl}/dashboard?token=${result.access_token}`);

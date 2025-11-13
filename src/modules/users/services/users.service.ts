@@ -31,7 +31,7 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return await this.userRepository.find({
-      select: ['id', 'fullName', 'email', 'phone', 'isVerified', 'createdAt'],
+      select: ['id', 'fullName', 'email', 'isVerified', 'createdAt'],
     });
   }
 
@@ -70,7 +70,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({
       where: { id },
       select: [
-        'id', 'fullName', 'email', 'phone', 'dni', 'address', 'role', 'propertiesCount',
+        'id', 'fullName', 'email', 'role', 
         'profilePicture', 'googleId', 'isVerified', 'isTwoFactorEnabled',
         'notificationSettings', 'appPreferences', 'createdAt', 'updatedAt'
       ],

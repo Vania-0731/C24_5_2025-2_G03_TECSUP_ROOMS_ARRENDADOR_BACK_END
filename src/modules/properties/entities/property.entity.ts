@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
 import { PropertyImage } from './property-image.entity';
 import { PropertyFeature } from './property-feature.entity';
+import { Request } from '../../requests/entities/request.entity';
 
 export enum PropertyType {
   ROOM = 'room',
@@ -130,4 +131,7 @@ export class Property {
 
   @OneToMany(() => PropertyFeature, feature => feature.property)
   features: PropertyFeature[];
+
+  @OneToMany(() => Request, req => req.property)
+  requests: Request[];
 }

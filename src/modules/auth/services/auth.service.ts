@@ -42,10 +42,6 @@ export class AuthService {
           email,
           profilePicture,
           googleId: id,
-          phone: '', // Se completará en el formulario de registro
-          dni: '', // Se completará en el formulario de registro
-          address: '', // Se completará en el formulario de registro
-          propertiesCount: 0,
           isVerified: true, // Los usuarios de Google están verificados por defecto
           role: desiredRole,
         });
@@ -147,10 +143,6 @@ export class AuthService {
           email,
           profilePicture,
           googleId,
-          phone: '',
-          dni: '',
-          address: '',
-          propertiesCount: 0,
           isVerified: true,
           role: desiredRole,
         } as any);

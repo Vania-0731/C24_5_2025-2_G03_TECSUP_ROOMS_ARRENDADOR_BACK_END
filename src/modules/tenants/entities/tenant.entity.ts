@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
+import { Request } from '../../requests/entities/request.entity';
 
 @Entity('tenants')
 export class Tenant {
@@ -45,4 +46,7 @@ export class Tenant {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => Request, req => req.tenant)
+  requests: Request[];
 }
