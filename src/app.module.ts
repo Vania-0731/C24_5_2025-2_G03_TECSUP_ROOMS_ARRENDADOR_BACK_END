@@ -9,6 +9,7 @@ import { LandlordsModule } from './modules/landlords/landlords.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { RequestsModule } from './modules/requests/requests.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { StorageModule } from './modules/storage/storage.module';
     ChatModule,
     RequestsModule,
     StorageModule,
+    MediaModule,
   ],
 })
 export class AppModule {}
