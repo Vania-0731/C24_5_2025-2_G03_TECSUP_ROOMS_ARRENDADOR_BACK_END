@@ -149,4 +149,14 @@ export class CreatePropertyDto {
   @IsOptional()
   @IsString()
   tour360Url?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'IDs de archivos multimedia (imágenes/videos) ya subidos para asociar a la propiedad',
+    isArray: true,
+    example: ['uuid-1','uuid-2']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mediaFileIds?: string[];
 }
