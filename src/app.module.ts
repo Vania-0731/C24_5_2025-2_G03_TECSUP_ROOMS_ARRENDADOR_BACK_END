@@ -8,6 +8,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { LandlordsModule } from './modules/landlords/landlords.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { RequestsModule } from './modules/requests/requests.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RequestsModule } from './modules/requests/requests.module';
     LandlordsModule,
     ChatModule,
     RequestsModule,
+    StorageModule,
   ],
 })
 export class AppModule {}
