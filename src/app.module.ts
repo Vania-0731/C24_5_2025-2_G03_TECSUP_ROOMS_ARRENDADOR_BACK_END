@@ -10,6 +10,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { RequestsModule } from './modules/requests/requests.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { MediaModule } from './modules/media/media.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MediaModule } from './modules/media/media.module';
     RequestsModule,
     StorageModule,
     MediaModule,
+    AiModule,
   ],
 })
 export class AppModule {}
