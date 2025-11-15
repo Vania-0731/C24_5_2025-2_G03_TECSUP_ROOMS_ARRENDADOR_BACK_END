@@ -4,6 +4,16 @@ import { Type } from 'class-transformer';
 import { ChatMessageDto } from './chat-message.dto';
 
 export class ChatRequestDto {
+  @ApiPropertyOptional({ description: 'ID de la conversación existente. Si no se envía, se crea una nueva.' })
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
+
+  @ApiPropertyOptional({ description: 'Título para la conversación (solo al crear).' })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @ApiProperty({ type: [ChatMessageDto], description: 'Historial de mensajes' })
   @IsArray()
   @ArrayMinSize(1)
