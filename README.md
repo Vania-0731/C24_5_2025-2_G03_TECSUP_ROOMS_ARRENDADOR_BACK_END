@@ -122,7 +122,7 @@ http://localhost:3000/auth-test/google
 Para no versionar datos sensibles ni correos personales, este repo incluye un template genérico:
 
 - `seed-template.sql` — Archivo de ejemplo SEGURO para poblar datos de prueba.
-- `seed-test-data.sql` — Archivo local (IGNORADO). No se versiona; úsalo solo en tu máquina si necesitas datos personalizados.
+
 
 Pasos recomendados:
 1) Registra usuarios de prueba desde la app (por ejemplo, `landlord@test.com` y `tenant@test.com`).
