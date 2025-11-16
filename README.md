@@ -117,6 +117,31 @@ npm run start:prod
 http://localhost:3000/auth-test/google
 ```
 
+## 🧩 Datos de prueba (seed)
+
+Para no versionar datos sensibles ni correos personales, este repo incluye un template genérico:
+
+- `seed-template.sql` — Archivo de ejemplo SEGURO para poblar datos de prueba.
+- `seed-test-data.sql` — Archivo local (IGNORADO). No se versiona; úsalo solo en tu máquina si necesitas datos personalizados.
+
+Pasos recomendados:
+1) Registra usuarios de prueba desde la app (por ejemplo, `landlord@test.com` y `tenant@test.com`).
+2) Abre `seed-template.sql` y ajusta las variables al inicio:
+   ```sql
+   SET @LANDLORD_EMAIL := 'landlord@test.com';
+   SET @TENANT_EMAIL   := 'tenant@test.com';
+   ```
+3) Ejecuta el template:
+   ```bash
+   mysql -u root -p <NOMBRE_BD> < seed-template.sql
+   ```
+   - Si tu consola no maneja tildes, el script incluye `SET NAMES utf8mb4;` para evitar problemas.
+4) Verifica en el frontend que se muestren propiedades, solicitudes y conversaciones de ejemplo.
+
+Notas:
+- Si los correos no existen en la tabla `users`, el script no insertará los datos dependientes (para evitar inconsistencias).
+- Puedes copiar `seed-template.sql` a `seed-test-data.sql` y personalizarlo localmente; ese archivo no se sube al repo.
+
 ## 📚 Documentación de la API
 
 Una vez que la aplicación esté ejecutándose, puedes acceder a la documentación de Swagger en:
