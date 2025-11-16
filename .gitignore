@@ -3,6 +3,9 @@
 /dist
 /build
 
+# Seeds locales (no versionar datos sensibles)
+seed-test-data.sql
+
 # Archivos de entorno
 .env
 .env.local

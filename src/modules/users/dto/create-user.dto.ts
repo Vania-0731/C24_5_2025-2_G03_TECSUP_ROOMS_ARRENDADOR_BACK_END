@@ -1,16 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, IsOptional, Length, IsBoolean, IsEnum } from 'class-validator';
-import { UserRole } from '../entities/user.entity';
+import { IsEmail, IsString, IsOptional, Length, IsBoolean, IsUUID } from 'class-validator';
 
 export class CreateUserDto {
-  @ApiProperty({ description: 'Nombre completo del arrendador' })
+  @ApiProperty({ description: 'Nombre completo del usuario' })
   @IsString()
   @Length(2, 255, { message: 'El nombre debe tener entre 2 y 255 caracteres' })
   fullName: string;
 
-  @ApiProperty({ description: 'Email del arrendador (cualquier dominio)' })
+  @ApiProperty({ description: 'Email del usuario (cualquier dominio)' })
   @IsEmail({}, { message: 'Debe proporcionar un email válido' })
   email: string;
+
+  @ApiProperty({ description: 'ID del rol del usuario' })
+  @IsUUID('4', { message: 'roleId debe ser un UUID válido' })
+  roleId: string;
 
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
   @IsOptional()
@@ -26,9 +29,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;
-
-  @ApiPropertyOptional({ description: 'Rol del usuario', enum: UserRole, default: UserRole.TENANT })
-  @IsOptional()
-  @IsEnum(UserRole, { message: 'role debe ser uno de: tenant, landlord' })
-  role?: UserRole;
 }

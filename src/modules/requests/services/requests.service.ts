@@ -4,17 +4,31 @@ import { Repository } from 'typeorm';
 import { Request, RequestStatus } from '../entities/request.entity';
 import { CreateRequestDto } from '../dto/create-request.dto';
 import { UpdateRequestDto } from '../dto/update-request.dto';
+import { ActivitiesService } from '../../activities/services/activities.service';
+import { EntityType, ActionType } from '../../activities/entities/activity-log.entity';
 
 @Injectable()
 export class RequestsService {
   constructor(
     @InjectRepository(Request)
     private readonly repo: Repository<Request>,
+    private readonly activities: ActivitiesService,
   ) {}
 
   async create(dto: CreateRequestDto, tenantId: string) {
     const entity = this.repo.create({ ...dto, tenantId });
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    try {
+      await this.activities.logActivity(
+        saved.tenantId,
+        EntityType.REQUEST,
+        ActionType.CREATE,
+        saved.id,
+        'Creaste una solicitud',
+        { propertyId: saved.propertyId },
+      );
+    } catch (_) {}
+    return saved;
   }
 
   async findOne(id: string) {
@@ -46,7 +60,19 @@ export class RequestsService {
       throw new ForbiddenException('No puedes actualizar esta solicitud');
     }
     req.status = status;
-    return this.repo.save(req);
+    const saved = await this.repo.save(req);
+    // Log activity: request accepted/rejected by landlord
+    try {
+      await this.activities.logActivity(
+        landlordId,
+        EntityType.REQUEST,
+        ActionType.UPDATE,
+        saved.id,
+        status === RequestStatus.ACCEPTED ? 'Aceptaste una solicitud' : 'Rechazaste una solicitud',
+        { propertyId: saved.propertyId, status },
+      );
+    } catch (_) {}
+    return saved;
   }
 
   async update(id: string, dto: UpdateRequestDto, userTenantId?: string) {

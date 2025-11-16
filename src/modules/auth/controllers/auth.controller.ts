@@ -77,7 +77,6 @@ export class AuthController {
   @ApiOperation({ summary: 'Cerrar sesión' })
   @ApiResponse({ status: 200, description: 'Sesión cerrada exitosamente' })
   async logout() {
-    // En un sistema más complejo, aquí invalidarías el token
     return { message: 'Sesión cerrada exitosamente' };
   }
 
@@ -88,9 +87,9 @@ export class AuthController {
   async syncGoogleUser(@Body() payload: any, @Res() res: Response) {
     const { user, created, updated } = await this.authService.syncGoogleUserFromNextAuth(payload);
     const { access_token } = await this.authService.generateJwtToken(user);
-
+    const userWithRole = await this.usersService.findById(user.id);
     const status = await this.usersService.checkRegistrationStatus(user.id);
-    const minimalUser = { id: user.id, role: user.role };
+    const minimalUser = { id: userWithRole.id, role: userWithRole.role };
 
     const payloadResp = { user: minimalUser, access_token, registrationComplete: !!status.isComplete } as any;
 

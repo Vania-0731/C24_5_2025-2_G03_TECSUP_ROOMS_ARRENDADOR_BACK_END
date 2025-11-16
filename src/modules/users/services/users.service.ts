@@ -7,6 +7,7 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UpdateUserLandlordDto } from '../dto/update-user-landlord.dto';
+import { RolesService } from '../../roles/services/roles.service';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +15,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly rolesService: RolesService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -24,6 +26,9 @@ export class UsersService {
     if (existingUser) {
       throw new ConflictException('El usuario con este email ya existe');
     }
+
+    // Validar que el rol existe
+    await this.rolesService.findOne(createUserDto.roleId);
 
     const user = this.userRepository.create(createUserDto);
     return await this.userRepository.save(user);
@@ -38,7 +43,7 @@ export class UsersService {
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['properties'],
+      relations: ['properties', 'role'],
     });
 
     if (!user) {
@@ -57,6 +62,11 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
     
+    // Validar que el rol existe si se está actualizando
+    if (updateUserDto.roleId) {
+      await this.rolesService.findOne(updateUserDto.roleId);
+    }
+    
     Object.assign(user, updateUserDto);
     return await this.userRepository.save(user);
   }
@@ -69,8 +79,9 @@ export class UsersService {
   async getProfile(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
+      relations: ['role'],
       select: [
-        'id', 'fullName', 'email', 'role', 
+        'id', 'fullName', 'email', 'roleId', 
         'profilePicture', 'googleId', 'isVerified', 'isTwoFactorEnabled',
         'notificationSettings', 'appPreferences', 'createdAt', 'updatedAt'
       ],
@@ -78,6 +89,12 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // Asegurarse de que el role esté cargado
+    if (!user.role && user.roleId) {
+      const role = await this.rolesService.findOne(user.roleId);
+      user.role = role;
     }
 
     return user;
@@ -175,15 +192,20 @@ export class UsersService {
     const missingFields: string[] = [];
     const nextSteps: string[] = [];
 
-    const user = await this.userRepository.findOne({ where: { id }, select: ['id', 'fullName', 'email', 'role'] });
+    const user = await this.userRepository.findOne({ 
+      where: { id }, 
+      relations: ['role'],
+      select: ['id', 'fullName', 'email', 'roleId'] 
+    });
     if (user?.fullName && user.fullName.trim() !== '') completedFields.push('fullName');
     else missingFields.push('fullName');
     if (user?.email && user.email.trim() !== '') completedFields.push('email');
     else missingFields.push('email');
 
     let isComplete = false;
+    const roleName = user?.role?.name;
 
-    if (user?.role === 'landlord') {
+    if (roleName === 'landlord') {
       const landlord = await this.dataSource.getRepository(LandlordProfile).findOne({ where: { userId: id } });
       isComplete = !!(
         landlord &&
@@ -203,7 +225,7 @@ export class UsersService {
         if (String(landlord.propertyCount || '').trim() !== '') completedFields.push('landlord.propertyCount');
         else { missingFields.push('landlord.propertyCount'); nextSteps.push('Indicar cantidad de propiedades'); }
       }
-    } else if (user?.role === 'tenant') {
+    } else if (roleName === 'tenant') {
       const tenant = await this.dataSource.getRepository(Tenant).findOne({ where: { userId: id } });
       isComplete = !!(
         tenant &&

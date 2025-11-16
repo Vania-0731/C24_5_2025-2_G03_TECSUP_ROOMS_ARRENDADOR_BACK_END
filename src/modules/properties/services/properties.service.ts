@@ -5,6 +5,8 @@ import { Property, PropertyStatus } from '../entities/property.entity';
 import { PropertyImage } from '../entities/property-image.entity';
 import { PropertyFeature } from '../entities/property-feature.entity';
 import { MediaFile } from '../../media/entities/media-file.entity';
+import { ActivitiesService } from '../../activities/services/activities.service';
+import { EntityType, ActionType } from '../../activities/entities/activity-log.entity';
 
 @Injectable()
 export class PropertiesService {
@@ -17,6 +19,7 @@ export class PropertiesService {
     private readonly propertyFeatureRepository: Repository<PropertyFeature>,
     @InjectRepository(MediaFile)
     private readonly mediaFileRepository: Repository<MediaFile>,
+    private readonly activities: ActivitiesService,
   ) {}
 
   async create(createPropertyDto: any, landlordId: string): Promise<Property> {
@@ -37,7 +40,16 @@ export class PropertiesService {
         await this.mediaFileRepository.save(owned);
       }
     }
-
+    try {
+      await this.activities.logActivity(
+        landlordId,
+        EntityType.PROPERTY,
+        ActionType.CREATE,
+        (savedProperty as any).id,
+        'Creaste una propiedad',
+        { title: (savedProperty as any).title }
+      );
+    } catch (_) {}
     return savedProperty as unknown as Property;
   }
 
@@ -86,6 +98,17 @@ export class PropertiesService {
       }
     }
 
+    // Log activity: property updated
+    try {
+      await this.activities.logActivity(
+        landlordId,
+        EntityType.PROPERTY,
+        ActionType.UPDATE,
+        saved.id,
+        'Actualizaste una propiedad',
+        { title: saved.title }
+      );
+    } catch (_) {}
     return saved;
   }
 

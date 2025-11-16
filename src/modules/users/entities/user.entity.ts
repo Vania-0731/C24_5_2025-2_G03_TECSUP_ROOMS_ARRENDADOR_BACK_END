@@ -1,11 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Property } from '../../properties/entities/property.entity';
-
-export enum UserRole {
-  TENANT = 'tenant',
-  LANDLORD = 'landlord',
-}
+import { Role } from '../../roles/entities/role.entity';
 
 @Entity('users')
 export class User {
@@ -13,22 +9,26 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ApiProperty({ description: 'Nombre completo del arrendador' })
+  @ApiProperty({ description: 'Nombre completo del usuario' })
   @Column({ length: 255 })
   fullName: string;
 
-  @ApiProperty({ description: 'Email del arrendador (cualquier dominio)' })
+  @ApiProperty({ description: 'Email del usuario (cualquier dominio)' })
   @Column({ unique: true, length: 255 })
   email: string;
 
-  @ApiProperty({ description: 'Rol del usuario', enum: UserRole, example: UserRole.TENANT })
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.TENANT })
-  role: UserRole;
+  @ApiProperty({ description: 'ID del rol del usuario' })
+  @Column({ name: 'role_id' })
+  roleId: string;
+
+  @ManyToOne(() => Role, role => role.users)
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
 
   
 
-  @ApiProperty({ description: 'URL de la foto de perfil', required: false })
-  @Column({ nullable: true })
+  @ApiProperty({ description: 'Foto de perfil en base64 (o URL)', required: false })
+  @Column({ type: 'longtext', nullable: true })
   profilePicture?: string;
 
   @ApiProperty({ description: 'ID de Google para OAuth2', required: false })
@@ -73,4 +73,11 @@ export class User {
   // Relaciones
   @OneToMany(() => Property, property => property.landlord)
   properties: Property[];
+}
+
+// Mantener enum para compatibilidad temporal (se puede eliminar después de migración)
+export enum UserRole {
+  TENANT = 'tenant',
+  LANDLORD = 'landlord',
+  ADMIN = 'admin',
 }
