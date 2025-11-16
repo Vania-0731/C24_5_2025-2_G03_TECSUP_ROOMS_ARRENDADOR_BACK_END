@@ -13,17 +13,15 @@ import { MediaType } from './entities/media-file.entity';
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 
-  // FOLDERS
   @Post('folders')
   @ApiOperation({ summary: 'Crear carpeta (solo landlord)' })
   createFolder(@Body() dto: CreateFolderDto, @Req() req: any) {
-    // Validación de rol en gateway o aquí (si lo pides, agrego check de role)
     return this.media.createFolder(dto, req.user.id);
   }
 
   @Get('folders')
-  @ApiOperation({ summary: 'Listar carpetas por propiedad del landlord' })
-  listFolders(@Query('propertyId') propertyId: string, @Req() req: any) {
+  @ApiOperation({ summary: 'Listar carpetas del landlord (opcionalmente filtradas por propiedad)' })
+  listFolders(@Req() req: any, @Query('propertyId') propertyId?: string) {
     return this.media.listFoldersByProperty(propertyId, req.user.id);
   }
 

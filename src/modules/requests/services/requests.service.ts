@@ -18,16 +18,14 @@ export class RequestsService {
   async create(dto: CreateRequestDto, tenantId: string) {
     const entity = this.repo.create({ ...dto, tenantId });
     const saved = await this.repo.save(entity);
-    try {
-      await this.activities.logActivity(
-        saved.tenantId,
-        EntityType.REQUEST,
-        ActionType.CREATE,
-        saved.id,
-        'Creaste una solicitud',
-        { propertyId: saved.propertyId },
-      );
-    } catch (_) {}
+    this.activities.logActivity(
+      saved.tenantId,
+      EntityType.REQUEST,
+      ActionType.CREATE,
+      saved.id,
+      'Creaste una solicitud',
+      { propertyId: saved.propertyId },
+    ).catch(() => {});
     return saved;
   }
 
@@ -61,17 +59,14 @@ export class RequestsService {
     }
     req.status = status;
     const saved = await this.repo.save(req);
-    // Log activity: request accepted/rejected by landlord
-    try {
-      await this.activities.logActivity(
-        landlordId,
-        EntityType.REQUEST,
-        ActionType.UPDATE,
-        saved.id,
-        status === RequestStatus.ACCEPTED ? 'Aceptaste una solicitud' : 'Rechazaste una solicitud',
-        { propertyId: saved.propertyId, status },
-      );
-    } catch (_) {}
+    this.activities.logActivity(
+      landlordId,
+      EntityType.REQUEST,
+      ActionType.UPDATE,
+      saved.id,
+      status === RequestStatus.ACCEPTED ? 'Aceptaste una solicitud' : 'Rechazaste una solicitud',
+      { propertyId: saved.propertyId, status },
+    ).catch(() => {});
     return saved;
   }
 

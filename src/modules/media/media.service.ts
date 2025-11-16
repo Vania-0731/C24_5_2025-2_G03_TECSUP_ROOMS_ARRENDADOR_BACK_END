@@ -5,12 +5,14 @@ import { MediaFolder } from './entities/media-folder.entity';
 import { MediaFile, MediaType } from './entities/media-file.entity';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { CreateFileDto } from './dto/create-file.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class MediaService {
   constructor(
     @InjectRepository(MediaFolder) private readonly folderRepo: Repository<MediaFolder>,
     @InjectRepository(MediaFile) private readonly fileRepo: Repository<MediaFile>,
+    private readonly storageService: StorageService,
   ) {}
 
   async createFolder(dto: CreateFolderDto, ownerUserId: string) {
@@ -18,14 +20,17 @@ export class MediaService {
     return this.folderRepo.save(entity);
   }
 
-  async listFoldersByProperty(propertyId: string, ownerUserId: string) {
-    const prefix = `properties/${propertyId}/`;
-    return this.folderRepo
+  async listFoldersByProperty(propertyId: string | undefined, ownerUserId: string) {
+    const qb = this.folderRepo
       .createQueryBuilder('folder')
-      .where('folder.ownerUserId = :ownerUserId', { ownerUserId })
-      .andWhere('folder.path LIKE :prefix', { prefix: `${prefix}%` })
-      .orderBy('folder.createdAt', 'DESC')
-      .getMany();
+      .where('folder.ownerUserId = :ownerUserId', { ownerUserId });
+    
+    if (propertyId) {
+      const prefix = `properties/${propertyId}/`;
+      qb.andWhere('folder.path LIKE :prefix', { prefix: `${prefix}%` });
+    }
+    
+    return qb.orderBy('folder.createdAt', 'DESC').getMany();
   }
 
   async registerFile(dto: CreateFileDto, ownerUserId: string) {
@@ -78,8 +83,25 @@ export class MediaService {
     const folder = await this.folderRepo.findOne({ where: { id } });
     if (!folder) throw new NotFoundException('Folder not found');
     if (folder.ownerUserId !== ownerUserId) throw new ForbiddenException();
+    const filesInFolder = await this.fileRepo.find({ where: { folderId: id } });
+        if (filesInFolder.length > 0) {
+      const s3Keys = filesInFolder
+        .map(file => file.s3Key)
+        .filter((key): key is string => !!key);
+      
+      if (s3Keys.length > 0) {
+        await this.storageService.deleteObjects(s3Keys);
+      }
+    }
+    if (filesInFolder.length > 0) {
+      await this.fileRepo.remove(filesInFolder);
+    }
     await this.folderRepo.remove(folder);
-    return { message: 'Folder deleted' };
+    
+    return { 
+      message: 'Folder deleted',
+      deletedFiles: filesInFolder.length,
+    };
   }
 
   async updateFile(id: string, data: Partial<MediaFile>, ownerUserId: string) {
@@ -94,7 +116,11 @@ export class MediaService {
     const file = await this.fileRepo.findOne({ where: { id } });
     if (!file) throw new NotFoundException('File not found');
     if (file.ownerUserId !== ownerUserId) throw new ForbiddenException();
+    if (file.s3Key) {
+      await this.storageService.deleteObject(file.s3Key);
+    }
     await this.fileRepo.remove(file);
+    
     return { message: 'File deleted' };
   }
 }

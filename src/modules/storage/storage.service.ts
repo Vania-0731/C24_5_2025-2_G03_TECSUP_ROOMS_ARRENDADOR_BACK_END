@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { CreatePresignDto } from './dto/create-presign.dto';
 import { randomUUID } from 'crypto';
@@ -14,7 +14,18 @@ export class StorageService {
   constructor(private readonly propertiesService: PropertiesService) {
     this.region = process.env.AWS_REGION || 'us-east-1';
     this.bucket = process.env.AWS_S3_BUCKET || '';
-    this.s3 = new S3Client({ region: this.region });
+    
+    const credentials = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined;
+    
+    this.s3 = new S3Client({
+      region: this.region,
+      credentials,
+    });
   }
 
   private getRoleName(role: any): string | null {
@@ -79,5 +90,35 @@ export class StorageService {
       bucket: this.bucket,
       expiresIn: 300,
     };
+  }
+
+  async deleteObject(s3Key: string): Promise<void> {
+    if (!s3Key) {
+      throw new BadRequestException('s3Key is required');
+    }
+
+    const command = new DeleteObjectCommand({
+      Bucket: this.bucket,
+      Key: s3Key,
+    });
+
+    try {
+      await this.s3.send(command);
+    } catch (error: any) {
+      if (error.name !== 'NoSuchKey') {
+        console.error('Error deleting object from S3:', error);
+        throw new Error(`Failed to delete object from S3: ${error.message}`);
+      }
+    }
+  }
+
+  async deleteObjects(s3Keys: string[]): Promise<void> {
+    if (!s3Keys || s3Keys.length === 0) {
+      return;
+    }
+
+    // Eliminar archivos en paralelo
+    const deletePromises = s3Keys.map(key => this.deleteObject(key));
+    await Promise.allSettled(deletePromises);
   }
 }

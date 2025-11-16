@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Property, PropertyStatus } from '../entities/property.entity';
@@ -29,27 +29,63 @@ export class PropertiesService {
       landlordId,
     });
     const savedProperty = (await this.propertyRepository.save(property as any)) as Property;
-
+    const operations: Promise<any>[] = [];
     if (Array.isArray(mediaFileIds) && mediaFileIds.length > 0) {
-      const files = await this.mediaFileRepository.findBy({ id: In(mediaFileIds) });
-      const owned = files.filter(f => (f.ownerUserId === landlordId));
-      if (owned.length) {
-        for (const f of owned) {
-          f.propertyId = savedProperty.id as any;
-        }
-        await this.mediaFileRepository.save(owned);
-      }
-    }
-    try {
-      await this.activities.logActivity(
-        landlordId,
-        EntityType.PROPERTY,
-        ActionType.CREATE,
-        (savedProperty as any).id,
-        'Creaste una propiedad',
-        { title: (savedProperty as any).title }
+      operations.push(
+        (async () => {
+          const files = await this.mediaFileRepository.findBy({ id: In(mediaFileIds) });
+          const owned = files.filter(f => (f.ownerUserId === landlordId));
+          if (owned.length) {
+            for (const f of owned) {
+              f.propertyId = savedProperty.id as any;
+            }
+            await this.mediaFileRepository.save(owned);
+            const propertyImages = owned
+              .filter(f => f.type === 'image')
+              .map((file, index) => {
+                const is360 = file.filename.toLowerCase().includes('360') || file.filename.toLowerCase().includes('tour');
+                return this.propertyImageRepository.create({
+                  url: file.url,
+                  filename: file.filename,
+                  propertyId: savedProperty.id,
+                  is360Tour: is360,
+                  order: index,
+                });
+              });
+            if (propertyImages.length > 0) {
+              await this.propertyImageRepository.save(propertyImages);
+            }
+          }
+        })()
       );
-    } catch (_) {}
+    }
+    if (Array.isArray(createPropertyDto.includedServices) && createPropertyDto.includedServices.length > 0) {
+      operations.push(
+        (async () => {
+          const features = createPropertyDto.includedServices.map((service: string) => {
+            return this.propertyFeatureRepository.create({
+              name: service,
+              value: 'Incluido',
+              propertyId: savedProperty.id,
+            });
+          });
+          if (features.length > 0) {
+            await this.propertyFeatureRepository.save(features);
+          }
+        })()
+      );
+    }
+
+    await Promise.all(operations);
+    this.activities.logActivity(
+      landlordId,
+      EntityType.PROPERTY,
+      ActionType.CREATE,
+      (savedProperty as any).id,
+      'Creaste una propiedad',
+      { title: (savedProperty as any).title }
+    ).catch(() => {});
+
     return savedProperty as unknown as Property;
   }
 
@@ -85,30 +121,85 @@ export class PropertiesService {
 
     Object.assign(property, rest);
     const saved = await this.propertyRepository.save(property);
-
+    const operations: Promise<any>[] = [];
     if (Array.isArray(mediaFileIds)) {
-      // Associate provided files to this property (only those owned by landlord)
-      const files = await this.mediaFileRepository.findBy({ id: In(mediaFileIds) });
-      const owned = files.filter(f => f.ownerUserId === landlordId);
-      if (owned.length) {
-        for (const f of owned) {
-          f.propertyId = saved.id as any;
-        }
-        await this.mediaFileRepository.save(owned);
-      }
-    }
+      operations.push(
+        (async () => {
+          const currentFiles = await this.mediaFileRepository.findBy({ propertyId: saved.id });
+          const filesToDisassociate = currentFiles.filter(f => !mediaFileIds.includes(f.id));
+          
+          if (filesToDisassociate.length > 0) {
+            for (const f of filesToDisassociate) {
+              f.propertyId = null as any;
+            }
+            await this.mediaFileRepository.save(filesToDisassociate);
+            const imageUrlsToRemove = filesToDisassociate.map(f => f.url);
+            if (imageUrlsToRemove.length > 0) {
+              await this.propertyImageRepository
+                .createQueryBuilder()
+                .delete()
+                .where('propertyId = :propertyId', { propertyId: saved.id })
+                .andWhere('url IN (:...urls)', { urls: imageUrlsToRemove })
+                .execute();
+            }
+          }
 
-    // Log activity: property updated
-    try {
-      await this.activities.logActivity(
-        landlordId,
-        EntityType.PROPERTY,
-        ActionType.UPDATE,
-        saved.id,
-        'Actualizaste una propiedad',
-        { title: saved.title }
+          const files = await this.mediaFileRepository.findBy({ id: In(mediaFileIds) });
+          const owned = files.filter(f => f.ownerUserId === landlordId);
+          if (owned.length) {
+            for (const f of owned) {
+              f.propertyId = saved.id as any;
+            }
+            await this.mediaFileRepository.save(owned);
+            const existingImages = await this.propertyImageRepository.findBy({ propertyId: saved.id });
+            const existingUrls = new Set(existingImages.map(img => img.url));
+            const newImages = owned
+              .filter(f => f.type === 'image' && !existingUrls.has(f.url))
+              .map((file, index) => {
+                const is360 = file.filename.toLowerCase().includes('360') || file.filename.toLowerCase().includes('tour');
+                return this.propertyImageRepository.create({
+                  url: file.url,
+                  filename: file.filename,
+                  propertyId: saved.id,
+                  is360Tour: is360,
+                  order: existingImages.length + index,
+                });
+              });
+            if (newImages.length > 0) {
+              await this.propertyImageRepository.save(newImages);
+            }
+          }
+        })()
       );
-    } catch (_) {}
+    }
+    if (Array.isArray(updatePropertyDto.includedServices)) {
+      operations.push(
+        (async () => {
+          await this.propertyFeatureRepository.delete({ propertyId: saved.id });
+          if (updatePropertyDto.includedServices.length > 0) {
+            const features = updatePropertyDto.includedServices.map((service: string) => {
+              return this.propertyFeatureRepository.create({
+                name: service,
+                value: 'Incluido',
+                propertyId: saved.id,
+              });
+            });
+            await this.propertyFeatureRepository.save(features);
+          }
+        })()
+      );
+    }
+    await Promise.all(operations);
+
+    this.activities.logActivity(
+      landlordId,
+      EntityType.PROPERTY,
+      ActionType.UPDATE,
+      saved.id,
+      'Actualizaste una propiedad',
+      { title: saved.title }
+    ).catch(() => {});
+
     return saved;
   }
 

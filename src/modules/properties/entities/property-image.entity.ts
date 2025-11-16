@@ -16,14 +16,6 @@ export class PropertyImage {
   @Column({ length: 255 })
   filename: string;
 
-  @ApiProperty({ description: 'Descripción de la imagen', required: false })
-  @Column({ length: 255, nullable: true })
-  description?: string;
-
-  @ApiProperty({ description: 'Tipo de habitación', required: false })
-  @Column({ length: 100, nullable: true })
-  roomType?: string;
-
   @ApiProperty({ description: 'Indica si es una imagen 360°' })
   @Column({ default: false })
   is360Tour: boolean;
