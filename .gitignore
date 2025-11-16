@@ -62,3 +62,7 @@ public/uploads/
 # Database
 *.sqlite
 *.db
+
+# Seeds locales y archivos sensibles
+seed-test-data.sql
+seeds/local/
