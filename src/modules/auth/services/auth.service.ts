@@ -2,9 +2,10 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../../users/services/users.service';
 import { DomainValidationService, UserType } from './domain-validation.service';
-import { User, UserRole } from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { TenantsService } from '../../tenants/services/tenants.service';
 import { LandlordsService } from '../../landlords/services/landlords.service';
+import { RolesService } from '../../roles/services/roles.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly domainValidationService: DomainValidationService,
     private readonly tenantsService: TenantsService,
     private readonly landlordsService: LandlordsService,
+    private readonly rolesService: RolesService,
   ) {}
 
   async validateGoogleUser(profile: any): Promise<User> {
@@ -24,13 +26,19 @@ export class AuthService {
     const profilePicture = photos[0]?.value;
 
     // Inferir rol por dominio y validar según rol inferido
-    const desiredRole = this.domainValidationService.inferRole(email);
+    const desiredRoleName = this.domainValidationService.inferRole(email);
     try {
       this.domainValidationService.validateEmailDomain(
         email,
-        desiredRole === UserRole.TENANT ? UserType.TENANT : UserType.LANDLORD,
+        desiredRoleName === 'tenant' ? UserType.TENANT : UserType.LANDLORD,
       );
     } catch (_) {}
+
+    // Obtener roleId del rol inferido
+    const role = await this.rolesService.findByName(desiredRoleName);
+    if (!role) {
+      throw new Error(`Rol '${desiredRoleName}' no encontrado en la base de datos`);
+    }
 
     let user = await this.usersService.findByEmail(email);
 
@@ -43,7 +51,7 @@ export class AuthService {
           profilePicture,
           googleId: id,
           isVerified: true, // Los usuarios de Google están verificados por defecto
-          role: desiredRole,
+          roleId: role.id,
         });
       } catch (e) {
         if (e instanceof ConflictException) {
@@ -54,7 +62,7 @@ export class AuthService {
               googleId: id,
               profilePicture,
               isVerified: true,
-              role: desiredRole,
+              roleId: role.id,
             });
           } else if (existing) {
             user = existing;
@@ -67,11 +75,15 @@ export class AuthService {
       }
     } else {
       // Si el usuario existe, asegurar googleId y rol actualizado
-      const updates: Partial<User> = {} as any;
+      const updates: any = {};
       if (!user.googleId) updates.googleId = id;
       if (profilePicture && user.profilePicture !== profilePicture) updates.profilePicture = profilePicture;
       if (!user.isVerified) updates.isVerified = true;
-      if (user.role !== desiredRole) updates.role = desiredRole;
+      // Cargar user con role para comparar
+      const userWithRole = await this.usersService.findById(user.id);
+      if (userWithRole.role?.name !== desiredRoleName) {
+        updates.roleId = role.id;
+      }
       if (Object.keys(updates).length > 0) {
         user = await this.usersService.update(user.id, updates);
       }
@@ -79,9 +91,10 @@ export class AuthService {
 
     // Ensure profile based on role
     try {
-      if (user.role === UserRole.TENANT) {
+      const userWithRole = await this.usersService.findById(user.id);
+      if (userWithRole.role?.name === 'tenant') {
         await this.tenantsService.ensureExistsForUser(user.id);
-      } else if (user.role === UserRole.LANDLORD) {
+      } else if (userWithRole.role?.name === 'landlord') {
         await this.landlordsService.ensureExistsForUser(user.id);
       }
     } catch (_) {}
@@ -123,13 +136,19 @@ export class AuthService {
     }
 
     // Determinar rol: usar payload válido o inferir por dominio
-    let desiredRole: UserRole | undefined;
-    if (incomingRole === UserRole.TENANT || incomingRole === 'tenant') {
-      desiredRole = UserRole.TENANT;
-    } else if (incomingRole === UserRole.LANDLORD || incomingRole === 'landlord') {
-      desiredRole = UserRole.LANDLORD;
+    let desiredRoleName: string;
+    if (incomingRole === 'tenant') {
+      desiredRoleName = 'tenant';
+    } else if (incomingRole === 'landlord') {
+      desiredRoleName = 'landlord';
     } else {
-      desiredRole = this.domainValidationService.inferRole(email);
+      desiredRoleName = this.domainValidationService.inferRole(email);
+    }
+
+    // Obtener roleId del rol
+    const role = await this.rolesService.findByName(desiredRoleName);
+    if (!role) {
+      throw new Error(`Rol '${desiredRoleName}' no encontrado en la base de datos`);
     }
 
     let user = await this.usersService.findByEmail(email);
@@ -144,8 +163,8 @@ export class AuthService {
           profilePicture,
           googleId,
           isVerified: true,
-          role: desiredRole,
-        } as any);
+          roleId: role.id,
+        });
         created = true;
       } catch (e) {
         if (e instanceof ConflictException) {
@@ -160,8 +179,10 @@ export class AuthService {
       if (!user.googleId && googleId) updates.googleId = googleId;
       if (profilePicture && user.profilePicture !== profilePicture) updates.profilePicture = profilePicture;
       if (!user.isVerified) updates.isVerified = true;
-      if (desiredRole && user.role !== desiredRole) {
-        updates.role = desiredRole;
+      // Cargar user con role para comparar
+      const userWithRole = await this.usersService.findById(user.id);
+      if (userWithRole.role?.name !== desiredRoleName) {
+        updates.roleId = role.id;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -172,9 +193,10 @@ export class AuthService {
 
     // Ensure related profile exists according to role
     try {
-      if (user.role === UserRole.TENANT) {
+      const userWithRole = await this.usersService.findById(user.id);
+      if (userWithRole.role?.name === 'tenant') {
         await this.tenantsService.ensureExistsForUser(user.id);
-      } else if (user.role === UserRole.LANDLORD) {
+      } else if (userWithRole.role?.name === 'landlord') {
         await this.landlordsService.ensureExistsForUser(user.id);
       }
     } catch (_) {}

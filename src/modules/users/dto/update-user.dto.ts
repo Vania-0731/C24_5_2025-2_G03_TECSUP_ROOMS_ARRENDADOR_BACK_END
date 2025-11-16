@@ -1,8 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateUserDto } from './create-user.dto';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, IsEnum } from 'class-validator';
-import { UserRole } from '../entities/user.entity';
+import { IsOptional, IsString, IsBoolean, IsUUID } from 'class-validator';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
@@ -20,10 +19,10 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsBoolean()
   isVerified?: boolean;
 
-  @ApiPropertyOptional({ description: 'Rol del usuario', enum: UserRole })
+  @ApiPropertyOptional({ description: 'ID del rol del usuario' })
   @IsOptional()
-  @IsEnum(UserRole, { message: 'role debe ser uno de: sin_rol, estudiante, arrendador' })
-  role?: UserRole;
+  @IsUUID('4', { message: 'roleId debe ser un UUID válido' })
+  roleId?: string;
 
   @ApiPropertyOptional({ description: 'Configuración de notificaciones' })
   @IsOptional()

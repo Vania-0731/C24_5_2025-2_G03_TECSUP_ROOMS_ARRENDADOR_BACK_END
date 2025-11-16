@@ -11,6 +11,9 @@ import { RequestsModule } from './modules/requests/requests.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { MediaModule } from './modules/media/media.module';
 import { AiModule } from './modules/ai/ai.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { AdminsModule } from './modules/admins/admins.module';
+import { ActivitiesModule } from './modules/activities/activities.module';
 
 @Module({
   imports: [
@@ -18,16 +21,19 @@ import { AiModule } from './modules/ai/ai.module';
       isGlobal: true,
     }),
     DatabaseModule,
+    RolesModule,
     AuthModule,
     UsersModule,
     PropertiesModule,
     TenantsModule,
     LandlordsModule,
+    AdminsModule,
     ChatModule,
     RequestsModule,
     StorageModule,
     MediaModule,
     AiModule,
+    ActivitiesModule,
   ],
 })
 export class AppModule {}

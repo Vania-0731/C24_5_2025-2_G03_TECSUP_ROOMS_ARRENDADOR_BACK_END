@@ -11,12 +11,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { LandlordsModule } from '../landlords/landlords.module';
+import { RolesModule } from '../roles/roles.module';
 
 @Module({
   imports: [
     UsersModule,
     TenantsModule,
     LandlordsModule,
+    RolesModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
