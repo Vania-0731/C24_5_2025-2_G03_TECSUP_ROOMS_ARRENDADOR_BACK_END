@@ -1,10 +1,12 @@
 -- ============================================
 -- Template de datos de prueba (NO PERSONAL)
 -- Instrucciones (leer antes de ejecutar):
+-- SECCIÓN REQUERIDA: Los ROLES deben existir ANTES del primer login/registro.
+--    Este script inserta (upsert) 'admin', 'landlord' y 'tenant'. EJECÚTALO al menos una vez.
 -- 1) Este archivo es un TEMPLATE. NO incluye correos/personas reales.
 -- 2) Para usarlo, define los correos de prueba al inicio (variables).
 -- 3) Primero registra usuarios con esos correos en la app (login/registro).
--- 4) Ejecuta este script: mysql -u root -p <NOMBRE_BD> < seed-template.sql
+-- 4) Ejecuta este script: mysql -u root -p tecsup_rooms < seed-template.sql
 -- 5) Si los usuarios no existen, el script no insertará datos dependientes.
 -- 6) Evita tildes/caracteres raros si tu consola no tiene UTF-8.
 --    Puedes forzar UTF-8 con:
@@ -23,8 +25,12 @@ SET @TENANT_EMAIL   := 'tenant@test.com';
 SET @LANDLORD_ID := (SELECT id FROM users WHERE email = @LANDLORD_EMAIL LIMIT 1);
 SET @TENANT_ID   := (SELECT id FROM users WHERE email = @TENANT_EMAIL LIMIT 1);
 
--- Roles mínimos
+-- ============================================
+-- SECCIÓN REQUERIDA: ROLES MÍNIMOS (ejecutar SIEMPRE al menos una vez)
+-- Esto evita errores como: "Rol 'landlord' no encontrado"
+-- ============================================
 INSERT INTO roles (id, name, description, createdAt, updatedAt) VALUES
+('00000000-0000-0000-0000-000000000001', 'admin', 'Administrador', NOW(), NOW()),
 ('00000000-0000-0000-0000-000000000002', 'landlord', 'Arrendador', NOW(), NOW()),
 ('00000000-0000-0000-0000-000000000003', 'tenant', 'Inquilino', NOW(), NOW())
 ON DUPLICATE KEY UPDATE name=name;
