@@ -8,9 +8,10 @@ import { ConversationParticipant } from './entities/conversation-participant.ent
 import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { ActivitiesModule } from '../activities/activities.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Conversation, ConversationParticipant, Message, User]), JwtModule],
+  imports: [TypeOrmModule.forFeature([Conversation, ConversationParticipant, Message, User]), JwtModule, ActivitiesModule],
   providers: [ChatService, ChatGateway],
   controllers: [ChatController],
   exports: [ChatService],
