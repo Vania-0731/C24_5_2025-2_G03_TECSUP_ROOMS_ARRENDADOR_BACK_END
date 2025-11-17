@@ -88,10 +88,22 @@ export class AuthController {
     const { user, created, updated } = await this.authService.syncGoogleUserFromNextAuth(payload);
     const { access_token } = await this.authService.generateJwtToken(user);
     const userWithRole = await this.usersService.findById(user.id);
-    const status = await this.usersService.checkRegistrationStatus(user.id);
     const minimalUser = { id: userWithRole.id, role: userWithRole.role };
 
-    const payloadResp = { user: minimalUser, access_token, registrationComplete: !!status.isComplete } as any;
+    let registrationComplete = true;
+    
+    if (created) {
+      registrationComplete = false;
+    } else {
+      registrationComplete = true;
+    }
+
+    const payloadResp = { 
+      user: minimalUser, 
+      access_token, 
+      registrationComplete,
+      created: !!created,
+    } as any;
 
     if (created) {
       return res.status(201).json(payloadResp);

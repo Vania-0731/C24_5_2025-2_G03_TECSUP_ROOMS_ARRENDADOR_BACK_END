@@ -4,9 +4,17 @@ import { AiController } from './ai.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiConversation } from './entities/ai-conversation.entity';
 import { AiMessage } from './entities/ai-message.entity';
+import { PropertiesModule } from '../properties/properties.module';
+import { UsersModule } from '../users/users.module';
+import { RequestsModule } from '../requests/requests.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AiConversation, AiMessage])],
+  imports: [
+    TypeOrmModule.forFeature([AiConversation, AiMessage]),
+    PropertiesModule,
+    UsersModule,
+    RequestsModule,
+  ],
   controllers: [AiController],
   providers: [AiService],
   exports: [AiService],

@@ -26,8 +26,6 @@ export class UsersService {
     if (existingUser) {
       throw new ConflictException('El usuario con este email ya existe');
     }
-
-    // Validar que el rol existe
     await this.rolesService.findOne(createUserDto.roleId);
 
     const user = this.userRepository.create(createUserDto);
@@ -61,12 +59,9 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
-    
-    // Validar que el rol existe si se está actualizando
     if (updateUserDto.roleId) {
       await this.rolesService.findOne(updateUserDto.roleId);
     }
-    
     Object.assign(user, updateUserDto);
     return await this.userRepository.save(user);
   }
@@ -81,33 +76,25 @@ export class UsersService {
       where: { id },
       relations: ['role'],
       select: [
-        'id', 'fullName', 'email', 'roleId', 
+        'id', 'fullName', 'email', 'roleId',
         'profilePicture', 'googleId', 'isVerified', 'isTwoFactorEnabled',
         'notificationSettings', 'appPreferences', 'createdAt', 'updatedAt'
       ],
     });
-
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-
-    // Asegurarse de que el role esté cargado
     if (!user.role && user.roleId) {
       const role = await this.rolesService.findOne(user.roleId);
       user.role = role;
     }
-
     return user;
   }
 
   async updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<{ message: string; user: User }> {
     const user = await this.findById(id);
-    
-    // Actualizar solo los campos proporcionados
     Object.assign(user, updateUserDto);
-    
     const updatedUser = await this.userRepository.save(user);
-    
     return {
       message: 'Perfil actualizado exitosamente',
       user: updatedUser
@@ -119,32 +106,23 @@ export class UsersService {
     updateData: UpdateUserLandlordDto
   ): Promise<{ message: string; user: User }> {
     const queryRunner = this.dataSource.createQueryRunner();
-
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
     try {
       const user = await queryRunner.manager.findOne(User, {
         where: { id },
       });
-
       if (!user) {
         throw new NotFoundException('Usuario no encontrado');
       }
-
       if (updateData.user) {
         Object.assign(user, updateData.user);
       }
-
-      // Persist landlord data in landlords table
       if (updateData.landlord) {
         const landlordRepo = queryRunner.manager.getRepository(LandlordProfile);
         let landlord = await landlordRepo.findOne({ where: { userId: id } });
-
-        // Allow both propertiesCount (DTO actual) and propertyCount (entity field)
         const { phone, dni, address } = updateData.landlord as any;
         const propsCount = (updateData.landlord as any).propertiesCount ?? (updateData.landlord as any).propertyCount;
-
         if (!landlord) {
           landlord = landlordRepo.create({
             userId: id,
@@ -162,11 +140,8 @@ export class UsersService {
 
         await landlordRepo.save(landlord);
       }
-
       const updatedUser = await queryRunner.manager.save(User, user);
-
       await queryRunner.commitTransaction();
-
       return {
         message: 'Datos actualizados exitosamente',
         user: updatedUser,
@@ -187,24 +162,20 @@ export class UsersService {
     completionPercentage: number;
     nextSteps: string[];
   }> {
-    // Simplificado: determinar según el rol del usuario qué perfil validar
     const completedFields: string[] = [];
     const missingFields: string[] = [];
     const nextSteps: string[] = [];
-
-    const user = await this.userRepository.findOne({ 
-      where: { id }, 
+    const user = await this.userRepository.findOne({
+      where: { id },
       relations: ['role'],
-      select: ['id', 'fullName', 'email', 'roleId'] 
+      select: ['id', 'fullName', 'email', 'roleId']
     });
     if (user?.fullName && user.fullName.trim() !== '') completedFields.push('fullName');
     else missingFields.push('fullName');
     if (user?.email && user.email.trim() !== '') completedFields.push('email');
     else missingFields.push('email');
-
     let isComplete = false;
     const roleName = user?.role?.name;
-
     if (roleName === 'landlord') {
       const landlord = await this.dataSource.getRepository(LandlordProfile).findOne({ where: { userId: id } });
       isComplete = !!(
@@ -214,7 +185,6 @@ export class UsersService {
         landlord.address && landlord.address.trim() !== '' &&
         landlord.propertyCount !== undefined && String(landlord.propertyCount).trim() !== ''
       );
-
       if (landlord) {
         if (landlord.phone && landlord.phone.trim() !== '') completedFields.push('landlord.phone');
         else { missingFields.push('landlord.phone'); nextSteps.push('Completar teléfono de arrendador'); }
@@ -236,7 +206,6 @@ export class UsersService {
         tenant.monthly_budget !== undefined &&
         tenant.origin_department && tenant.origin_department.trim() !== ''
       );
-
       if (tenant) {
         if (tenant.phone && tenant.phone.trim() !== '') completedFields.push('tenant.phone');
         else { missingFields.push('tenant.phone'); nextSteps.push('Completar teléfono de inquilino'); }
@@ -252,9 +221,7 @@ export class UsersService {
         else { missingFields.push('tenant.origin_department'); nextSteps.push('Indicar departamento de origen'); }
       }
     }
-
     const completionPercentage = isComplete ? 100 : Math.round((completedFields.length / (completedFields.length + missingFields.length || 1)) * 100);
-
     return {
       isComplete,
       completedFields,
@@ -263,5 +230,4 @@ export class UsersService {
       nextSteps,
     };
   }
-
 }
