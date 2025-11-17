@@ -37,7 +37,6 @@ export class MediaController {
     return this.media.deleteFolder(id, req.user.id);
   }
 
-  // FILES
   @Post('files')
   @ApiOperation({ summary: 'Registrar archivo subido (imagen, video, avatar)' })
   createFile(@Body() dto: CreateFileDto, @Req() req: any) {

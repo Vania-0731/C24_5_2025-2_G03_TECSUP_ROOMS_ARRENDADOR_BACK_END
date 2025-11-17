@@ -117,7 +117,6 @@ export class Property {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Relaciones
   @ApiProperty({ description: 'ID del arrendador' })
   @Column({ name: 'landlord_id' })
   landlordId: string;

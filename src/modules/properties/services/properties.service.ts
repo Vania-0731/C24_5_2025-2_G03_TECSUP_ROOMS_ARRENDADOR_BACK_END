@@ -40,18 +40,75 @@ export class PropertiesService {
               f.propertyId = savedProperty.id as any;
             }
             await this.mediaFileRepository.save(owned);
-            const propertyImages = owned
-              .filter(f => f.type === 'image')
-              .map((file, index) => {
-                const is360 = file.filename.toLowerCase().includes('360') || file.filename.toLowerCase().includes('tour');
-                return this.propertyImageRepository.create({
-                  url: file.url,
-                  filename: file.filename,
+            const tour360FileIds = Array.isArray(createPropertyDto.tour360FileIds) ? createPropertyDto.tour360FileIds : [];
+            const coverImageFileId = createPropertyDto.coverImageFileId;
+            
+            const imageFiles = owned.filter(f => f.type === 'image');
+            const regularImages: any[] = [];
+            const tour360Images: any[] = [];
+            
+            imageFiles.forEach((file) => {
+              const lower = file.filename.toLowerCase();
+              const autoDetect = lower.includes('360') || lower.includes('tour') || 
+                                lower.includes('equirectangular') || lower.includes('panorama') ||
+                                lower.includes('panoramic') || lower.includes('vr') || lower.includes('virtual');
+              const is360 = tour360FileIds.includes(file.id) || autoDetect;
+              
+              if (is360) {
+                tour360Images.push({ file, is360: true });
+              } else {
+                regularImages.push({ file, is360: false });
+              }
+            });
+            
+            const propertyImages: any[] = [];
+            let orderCounter = 0;
+            
+            if (coverImageFileId) {
+              const coverFile = regularImages.find(item => item.file.id === coverImageFileId);
+              if (coverFile) {
+                propertyImages.push(this.propertyImageRepository.create({
+                  url: coverFile.file.url,
+                  filename: coverFile.file.filename,
                   propertyId: savedProperty.id,
-                  is360Tour: is360,
-                  order: index,
-                });
-              });
+                  is360Tour: false,
+                  order: 0,
+                }));
+                orderCounter = 1;
+                regularImages.splice(regularImages.indexOf(coverFile), 1);
+              }
+            } else if (regularImages.length > 0) {
+              const firstRegular = regularImages.shift();
+              propertyImages.push(this.propertyImageRepository.create({
+                url: firstRegular.file.url,
+                filename: firstRegular.file.filename,
+                propertyId: savedProperty.id,
+                is360Tour: false,
+                order: 0,
+              }));
+              orderCounter = 1;
+            }
+            
+            regularImages.forEach((item) => {
+              propertyImages.push(this.propertyImageRepository.create({
+                url: item.file.url,
+                filename: item.file.filename,
+                propertyId: savedProperty.id,
+                is360Tour: false,
+                order: orderCounter++,
+              }));
+            });
+            
+            tour360Images.forEach((item) => {
+              propertyImages.push(this.propertyImageRepository.create({
+                url: item.file.url,
+                filename: item.file.filename,
+                propertyId: savedProperty.id,
+                is360Tour: true,
+                order: orderCounter++,
+              }));
+            });
+            
             if (propertyImages.length > 0) {
               await this.propertyImageRepository.save(propertyImages);
             }
@@ -153,18 +210,121 @@ export class PropertiesService {
             await this.mediaFileRepository.save(owned);
             const existingImages = await this.propertyImageRepository.findBy({ propertyId: saved.id });
             const existingUrls = new Set(existingImages.map(img => img.url));
-            const newImages = owned
-              .filter(f => f.type === 'image' && !existingUrls.has(f.url))
-              .map((file, index) => {
-                const is360 = file.filename.toLowerCase().includes('360') || file.filename.toLowerCase().includes('tour');
-                return this.propertyImageRepository.create({
-                  url: file.url,
-                  filename: file.filename,
+            const tour360FileIds = Array.isArray(updatePropertyDto.tour360FileIds) ? updatePropertyDto.tour360FileIds : [];
+            const coverImageFileId = updatePropertyDto.coverImageFileId;
+            
+            const filesMap = new Map(owned.map(f => [f.id, f]));
+            const imageFiles = owned.filter(f => f.type === 'image');
+            const regularImages: any[] = [];
+            const tour360Images: any[] = [];
+            
+            imageFiles.forEach((file) => {
+              const lower = file.filename.toLowerCase();
+              const autoDetect = lower.includes('360') || lower.includes('tour') || 
+                                lower.includes('equirectangular') || lower.includes('panorama') ||
+                                lower.includes('panoramic') || lower.includes('vr') || lower.includes('virtual');
+              const is360 = tour360FileIds.includes(file.id) || autoDetect;
+              
+              if (is360) {
+                tour360Images.push({ file, is360: true });
+              } else {
+                regularImages.push({ file, is360: false });
+              }
+            });
+            
+            for (const existingImg of existingImages) {
+              const matchingFile = Array.from(filesMap.values()).find(f => f.url === existingImg.url);
+              if (matchingFile) {
+                const lower = matchingFile.filename.toLowerCase();
+                const autoDetect = lower.includes('360') || lower.includes('tour') || 
+                                  lower.includes('equirectangular') || lower.includes('panorama') ||
+                                  lower.includes('panoramic') || lower.includes('vr') || lower.includes('virtual');
+                existingImg.is360Tour = tour360FileIds.includes(matchingFile.id) || autoDetect;
+                if (coverImageFileId && matchingFile.id === coverImageFileId && !existingImg.is360Tour) {
+                  existingImg.order = 0;
+                } else if (!coverImageFileId && existingImg.order === 0 && !existingImg.is360Tour) {
+                  existingImg.order = 0;
+                }
+              }
+            }
+            
+            const newRegularImages = regularImages.filter(item => !existingUrls.has(item.file.url));
+            const newTour360Images = tour360Images.filter(item => !existingUrls.has(item.file.url));
+            
+            const existingRegularImages = existingImages.filter(img => !img.is360Tour);
+            let orderCounter = existingRegularImages.length > 0 ? 1 : 0;
+            
+            if (coverImageFileId) {
+              const coverFile = regularImages.find(item => item.file.id === coverImageFileId);
+              if (coverFile) {
+                const existingCover = existingImages.find(img => img.url === coverFile.file.url);
+                if (existingCover) {
+                  existingCover.order = 0;
+                  for (const img of existingImages) {
+                    if (img.id !== existingCover.id && img.order === 0) {
+                      img.order = orderCounter++;
+                    }
+                  }
+                } else {
+                  newRegularImages.unshift(coverFile);
+                  const coverIndex = newRegularImages.indexOf(coverFile);
+                  if (coverIndex > 0) {
+                    newRegularImages.splice(coverIndex, 1);
+                    newRegularImages.unshift(coverFile);
+                  }
+                }
+              }
+            }
+            
+            await this.propertyImageRepository.save(existingImages);
+            
+            const newImages: any[] = [];
+            
+            if (coverImageFileId) {
+              const coverFile = newRegularImages.find(item => item.file.id === coverImageFileId);
+              if (coverFile) {
+                newImages.push(this.propertyImageRepository.create({
+                  url: coverFile.file.url,
+                  filename: coverFile.file.filename,
                   propertyId: saved.id,
-                  is360Tour: is360,
-                  order: existingImages.length + index,
-                });
-              });
+                  is360Tour: false,
+                  order: 0,
+                }));
+                newRegularImages.splice(newRegularImages.indexOf(coverFile), 1);
+                orderCounter = 1;
+              }
+            } else if (newRegularImages.length > 0 && existingImages.filter(img => img.order === 0).length === 0) {
+              const firstRegular = newRegularImages.shift();
+              newImages.push(this.propertyImageRepository.create({
+                url: firstRegular.file.url,
+                filename: firstRegular.file.filename,
+                propertyId: saved.id,
+                is360Tour: false,
+                order: 0,
+              }));
+              orderCounter = 1;
+            }
+            
+            newRegularImages.forEach((item) => {
+              newImages.push(this.propertyImageRepository.create({
+                url: item.file.url,
+                filename: item.file.filename,
+                propertyId: saved.id,
+                is360Tour: false,
+                order: orderCounter++,
+              }));
+            });
+            
+            newTour360Images.forEach((item) => {
+              newImages.push(this.propertyImageRepository.create({
+                url: item.file.url,
+                filename: item.file.filename,
+                propertyId: saved.id,
+                is360Tour: true,
+                order: orderCounter++,
+              }));
+            });
+            
             if (newImages.length > 0) {
               await this.propertyImageRepository.save(newImages);
             }

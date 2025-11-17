@@ -159,4 +159,22 @@ export class CreatePropertyDto {
   @IsArray()
   @IsString({ each: true })
   mediaFileIds?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'IDs de archivos que son tours 360° (debe ser un subconjunto de mediaFileIds)',
+    isArray: true,
+    example: ['uuid-1']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tour360FileIds?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'ID del archivo que será la imagen de portada (debe ser una imagen no 360° y estar en mediaFileIds)',
+    example: 'uuid-1'
+  })
+  @IsOptional()
+  @IsString()
+  coverImageFileId?: string;
 }

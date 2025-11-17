@@ -28,7 +28,6 @@ export class PropertyImage {
   @CreateDateColumn()
   createdAt: Date;
 
-  // Relaciones
   @ApiProperty({ description: 'ID de la propiedad' })
   @Column({ name: 'property_id' })
   propertyId: string;

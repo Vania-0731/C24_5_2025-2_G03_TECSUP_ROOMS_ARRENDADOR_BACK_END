@@ -17,21 +17,18 @@ export class RequestsController {
     private readonly tenantsService: TenantsService,
   ) {}
 
-  // Tenant crea solicitud para una propiedad
   @Post()
   async create(@Body() dto: CreateRequestDto, @Req() req: any) {
     const tenant = await this.tenantsService.ensureExistsForUser(req.user.id);
     return this.service.create(dto, tenant.id);
   }
 
-  // Listar solicitudes del arrendador dueño de la propiedad
   @Get('landlord')
   @ApiQuery({ name: 'status', required: false, enum: RequestStatus })
   listForLandlord(@Req() req: any, @Query('status') status?: RequestStatus) {
     return this.service.listForLandlord(req.user.id, status);
   }
 
-  // Listar solicitudes del tenant
   @Get('me')
   @ApiQuery({ name: 'status', required: false, enum: RequestStatus })
   async listForTenant(@Req() req: any, @Query('status') status?: RequestStatus) {
@@ -39,7 +36,6 @@ export class RequestsController {
     return this.service.listForTenant(tenant.id, status);
   }
 
-  // Aceptar / Rechazar (landlord)
   @Patch(':id/accept')
   accept(@Param('id') id: string, @Req() req: any) {
     return this.service.updateStatus(id, RequestStatus.ACCEPTED, req.user.id);
@@ -50,7 +46,6 @@ export class RequestsController {
     return this.service.updateStatus(id, RequestStatus.REJECTED, req.user.id);
   }
 
-  // Actualizar mensaje (tenant)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateRequestDto, @Req() req: any) {
     return this.service.update(id, dto, req.user.id);

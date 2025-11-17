@@ -27,7 +27,6 @@ export class AuthTestController {
   })
   @ApiResponse({ status: 200, description: 'Redirección a Google para autenticación' })
   async googleAuth(@Req() req: Request) {
-    // Este endpoint inicia el flujo de OAuth2 de Google
   }
 
   @Get('google/callback')
@@ -36,8 +35,6 @@ export class AuthTestController {
   async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as User;
     const result = await this.authService.generateJwtToken(user);
-    
-    // En lugar de redirigir al frontend, mostramos el resultado en formato JSON
     res.json({
       success: true,
       message: '¡Autenticación exitosa!',

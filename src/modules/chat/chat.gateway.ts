@@ -36,7 +36,6 @@ export class ChatGateway implements OnGatewayConnection {
   async onTyping(@ConnectedSocket() client: Socket, @MessageBody() body: { conversationId: string; isTyping: boolean }) {
     const userId = (client as any).userId as string;
     const room = this.roomForConversation(body.conversationId);
-    // Notificamos a otros participantes
     client.to(room).emit('conversation:typing', { conversationId: body.conversationId, userId, isTyping: body.isTyping });
   }
 
@@ -45,7 +44,6 @@ export class ChatGateway implements OnGatewayConnection {
     const userId = (client as any).userId as string;
     const result = await this.chatService.markAsRead(body.conversationId, userId);
     const room = this.roomForConversation(body.conversationId);
-    // Informar a otros que este usuario leyó
     client.to(room).emit('conversation:read', result);
     return result;
   }

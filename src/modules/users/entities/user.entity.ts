@@ -70,12 +70,10 @@ export class User {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Relaciones
   @OneToMany(() => Property, property => property.landlord)
   properties: Property[];
 }
 
-// Mantener enum para compatibilidad temporal (se puede eliminar después de migración)
 export enum UserRole {
   TENANT = 'tenant',
   LANDLORD = 'landlord',

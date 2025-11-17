@@ -1,4 +1,3 @@
-// src/modules/users/dto/update-user-landlord.dto.ts
 import { IsString, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 

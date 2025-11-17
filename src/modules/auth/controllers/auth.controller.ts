@@ -21,7 +21,6 @@ export class AuthController {
   @ApiOperation({ summary: 'Iniciar sesión con Google OAuth2' })
   @ApiResponse({ status: 200, description: 'Redirección a Google para autenticación' })
   async googleAuth(@Req() req: Request) {
-    // Este endpoint inicia el flujo de OAuth2 de Google
   }
 
   @Get('google/callback')
@@ -31,11 +30,7 @@ export class AuthController {
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     const user = req.user as User;
     const result = await this.authService.generateJwtToken(user);
-    
-    // Redirigir al frontend con el token
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    
-    // Si el usuario no tiene todos los datos completos, redirigir al formulario de registro
     const status = await this.usersService.checkRegistrationStatus(user.id);
     if (!status.isComplete) {
       res.redirect(`${frontendUrl}/complete-registration?token=${result.access_token}`);

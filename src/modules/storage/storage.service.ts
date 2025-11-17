@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { CreatePresignDto } from './dto/create-presign.dto';
 import { randomUUID } from 'crypto';
@@ -106,7 +106,6 @@ export class StorageService {
       await this.s3.send(command);
     } catch (error: any) {
       if (error.name !== 'NoSuchKey') {
-        console.error('Error deleting object from S3:', error);
         throw new Error(`Failed to delete object from S3: ${error.message}`);
       }
     }
@@ -117,8 +116,42 @@ export class StorageService {
       return;
     }
 
-    // Eliminar archivos en paralelo
     const deletePromises = s3Keys.map(key => this.deleteObject(key));
     await Promise.allSettled(deletePromises);
+  }
+
+  async getObject(s3Key: string): Promise<{ body: any; contentType: string }> {
+    if (!s3Key) {
+      throw new BadRequestException('s3Key is required');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: s3Key,
+    });
+
+    try {
+      const response = await this.s3.send(command);
+      
+      return {
+        body: response.Body,
+        contentType: response.ContentType || 'application/octet-stream',
+      };
+    } catch (error: any) {
+      if (error.name === 'NoSuchKey') {
+        throw new NotFoundException('Archivo no encontrado en S3');
+      }
+      throw new Error(`Error al obtener objeto de S3: ${error.message}`);
+    }
+  }
+
+  extractS3KeyFromUrl(url: string): string | null {
+    const baseUrl = process.env.AWS_S3_BASE_URL || `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
+    
+    if (!url.startsWith(baseUrl)) {
+      return null;
+    }
+    
+    return url.replace(baseUrl + '/', '');
   }
 }

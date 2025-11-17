@@ -24,8 +24,6 @@ export class AuthService {
     const email = emails[0].value;
     const fullName = `${name.givenName} ${name.familyName}`;
     const profilePicture = photos[0]?.value;
-
-    // Inferir rol por dominio y validar según rol inferido
     const desiredRoleName = this.domainValidationService.inferRole(email);
     try {
       this.domainValidationService.validateEmailDomain(
@@ -43,7 +41,6 @@ export class AuthService {
     let user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      // Crear nuevo usuario con Google OAuth segun rol inferido
       try {
         user = await this.usersService.create({
           fullName,
@@ -55,7 +52,6 @@ export class AuthService {
         });
       } catch (e) {
         if (e instanceof ConflictException) {
-          // Si alguien creó el usuario en paralelo, recuperar y actualizar googleId
           const existing = await this.usersService.findByEmail(email);
           if (existing && !existing.googleId) {
             user = await this.usersService.update(existing.id, {
@@ -74,7 +70,6 @@ export class AuthService {
         }
       }
     } else {
-      // Si el usuario existe, asegurar googleId y rol actualizado
       const updates: any = {};
       if (!user.googleId) updates.googleId = id;
       if (profilePicture && user.profilePicture !== profilePicture) updates.profilePicture = profilePicture;
@@ -89,7 +84,6 @@ export class AuthService {
       }
     }
 
-    // Ensure profile based on role
     try {
       const userWithRole = await this.usersService.findById(user.id);
       if (userWithRole.role?.name === 'tenant') {
@@ -135,7 +129,6 @@ export class AuthService {
       throw new Error('Email is required');
     }
 
-    // Determinar rol: usar payload válido o inferir por dominio
     let desiredRoleName: string;
     if (incomingRole === 'tenant') {
       desiredRoleName = 'tenant';
@@ -144,8 +137,6 @@ export class AuthService {
     } else {
       desiredRoleName = this.domainValidationService.inferRole(email);
     }
-
-    // Obtener roleId del rol
     const role = await this.rolesService.findByName(desiredRoleName);
     if (!role) {
       throw new Error(`Rol '${desiredRoleName}' no encontrado en la base de datos`);
@@ -168,7 +159,6 @@ export class AuthService {
         created = true;
       } catch (e) {
         if (e instanceof ConflictException) {
-          // Usuario creado concurrentemente: recuperar y pasar a actualizar
           user = await this.usersService.findByEmail(email) as User;
         } else {
           throw e;
@@ -191,7 +181,6 @@ export class AuthService {
       }
     }
 
-    // Ensure related profile exists according to role
     try {
       const userWithRole = await this.usersService.findById(user.id);
       if (userWithRole.role?.name === 'tenant') {
@@ -205,7 +194,6 @@ export class AuthService {
   }
 
   async completeRegistration(userId: string, registrationData: any): Promise<User> {
-    // Completar el registro del arrendador con los datos del formulario
     return await this.usersService.update(userId, registrationData);
   }
 }

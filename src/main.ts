@@ -5,21 +5,24 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  // Configuración de CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:3001',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+    ],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
-  // Configuración de validación global
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
   }));
 
-  // Configuración de Swagger
   const config = new DocumentBuilder()
     .setTitle('TECSUP Rooms API')
     .setDescription('API para la aplicación de alquiler de habitaciones para estudiantes de TECSUP')
@@ -37,5 +40,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-
