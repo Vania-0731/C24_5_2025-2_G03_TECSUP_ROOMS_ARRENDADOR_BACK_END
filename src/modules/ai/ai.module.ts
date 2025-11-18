@@ -7,6 +7,8 @@ import { AiMessage } from './entities/ai-message.entity';
 import { PropertiesModule } from '../properties/properties.module';
 import { UsersModule } from '../users/users.module';
 import { RequestsModule } from '../requests/requests.module';
+import { ChatModule } from '../chat/chat.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { RequestsModule } from '../requests/requests.module';
     PropertiesModule,
     UsersModule,
     RequestsModule,
+    ChatModule,
+    MediaModule,
   ],
   controllers: [AiController],
   providers: [AiService],

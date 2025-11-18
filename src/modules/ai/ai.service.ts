@@ -7,6 +7,8 @@ import { AiMessage } from './entities/ai-message.entity';
 import { PropertiesService } from '../properties/services/properties.service';
 import { UsersService } from '../users/services/users.service';
 import { RequestsService } from '../requests/services/requests.service';
+import { ChatService } from '../chat/chat.service';
+import { MediaService } from '../media/media.service';
 import { SYSTEM_PROMPT } from './prompts/system.prompt';
 
 @Injectable()
@@ -17,6 +19,8 @@ export class AiService {
     private readonly propertiesService: PropertiesService,
     private readonly usersService: UsersService,
     private readonly requestsService: RequestsService,
+    private readonly chatService: ChatService,
+    private readonly mediaService: MediaService,
   ) {}
 
   private get apiKey() {
@@ -27,11 +31,13 @@ export class AiService {
 
   private async buildUserContext(userId: string): Promise<string> {
     try {
-      const [user, stats, properties, requests] = await Promise.all([
+      const [user, stats, properties, requests, conversations, media] = await Promise.all([
         this.usersService.getProfile(userId).catch(() => null),
         this.propertiesService.getStats(userId).catch(() => null),
         this.propertiesService.findAllByLandlord(userId).catch(() => []),
         this.requestsService.listForLandlord(userId).catch(() => []),
+        this.chatService.listConversations(userId).catch(() => []),
+        this.mediaService.listMyFiles(userId).catch(() => []),
       ]);
 
       const contextParts: string[] = [];
@@ -71,6 +77,31 @@ export class AiService {
         contextParts.push(`- Pendientes: ${pending}`);
         contextParts.push(`- Aceptadas: ${accepted}`);
         contextParts.push(`- Rechazadas: ${rejected}`);
+      }
+
+      if (conversations && conversations.length > 0) {
+        const totalUnread = conversations.reduce((sum: number, conv: any) => sum + (conv.unreadCount || 0), 0);
+        contextParts.push(`\nMensajes:`);
+        contextParts.push(`- Total de conversaciones: ${conversations.length}`);
+        contextParts.push(`- Mensajes sin leer: ${totalUnread}`);
+        if (conversations.length > 0) {
+          contextParts.push(`- Conversaciones recientes:`);
+          conversations.slice(0, 3).forEach((conv: any, idx: number) => {
+            const otherUser = conv.participants?.find((p: any) => p.user?.id !== userId)?.user;
+            const userName = otherUser?.fullName || otherUser?.email || 'Usuario desconocido';
+            const lastMsg = conv.lastMessage?.content?.substring(0, 50) || 'Sin mensajes';
+            contextParts.push(`  ${idx + 1}. Con ${userName}: "${lastMsg}${conv.lastMessage?.content?.length > 50 ? '...' : ''}"`);
+          });
+        }
+      }
+
+      if (media && media.length > 0) {
+        const images = media.filter((m: any) => m.type === 'image').length;
+        const videos = media.filter((m: any) => m.type === 'video').length;
+        contextParts.push(`\nArchivos multimedia:`);
+        contextParts.push(`- Total de archivos: ${media.length}`);
+        contextParts.push(`- Imágenes: ${images}`);
+        contextParts.push(`- Videos: ${videos}`);
       }
 
       return contextParts.join('\n');

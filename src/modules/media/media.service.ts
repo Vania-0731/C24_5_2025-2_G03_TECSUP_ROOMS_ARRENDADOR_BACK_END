@@ -15,8 +15,34 @@ export class MediaService {
     private readonly storageService: StorageService,
   ) {}
 
-  async createFolder(dto: CreateFolderDto, ownerUserId: string) {
-    const entity = this.folderRepo.create({ ...dto, ownerUserId });
+  async createFolder(dto: CreateFolderDto, ownerUserId: string, ownerEmail?: string) {
+    const sanitizeEmail = (email: string) => {
+      return email
+        .toLowerCase()
+        .replace(/@/g, '-at-')
+        .replace(/[^a-z0-9\-_]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    };
+    
+    let bucketPath = dto.path;
+    if (ownerEmail) {
+      const emailSuffix = sanitizeEmail(ownerEmail);
+      if (bucketPath.includes('/')) {
+        const parts = bucketPath.split('/');
+        const lastPart = parts[parts.length - 1];
+        parts[parts.length - 1] = `${lastPart}-${emailSuffix}`;
+        bucketPath = parts.join('/');
+      } else {
+        bucketPath = `${bucketPath}-${emailSuffix}`;
+      }
+    }
+
+    const entity = this.folderRepo.create({ 
+      ...dto, 
+      path: bucketPath,
+      ownerUserId 
+    });
     return this.folderRepo.save(entity);
   }
 

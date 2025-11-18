@@ -16,7 +16,7 @@ export class MediaController {
   @Post('folders')
   @ApiOperation({ summary: 'Crear carpeta (solo landlord)' })
   createFolder(@Body() dto: CreateFolderDto, @Req() req: any) {
-    return this.media.createFolder(dto, req.user.id);
+    return this.media.createFolder(dto, req.user.id, req.user.email);
   }
 
   @Get('folders')
