@@ -7,6 +7,8 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { User } from '../../users/entities/user.entity';
 import { RegisterLandlordDto } from '../dto/register-landlord.dto';
 import { UsersService } from '../../users/services/users.service';
+import { LandlordsService } from '../../landlords/services/landlords.service';
+import { TenantsService } from '../../tenants/services/tenants.service';
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -14,6 +16,8 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly landlordsService: LandlordsService,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   @Get('google')
@@ -85,12 +89,24 @@ export class AuthController {
     const userWithRole = await this.usersService.findById(user.id);
     const minimalUser = { id: userWithRole.id, role: userWithRole.role };
 
-    let registrationComplete = true;
+    let registrationComplete = false;
     
     if (created) {
       registrationComplete = false;
     } else {
-      registrationComplete = true;
+      const roleName = typeof userWithRole.role === 'string' 
+        ? userWithRole.role 
+        : userWithRole.role?.name;
+      
+      if (roleName === 'landlord') {
+        const landlord = await this.landlordsService.findByUserId(user.id).catch(() => null);
+        registrationComplete = !!landlord;
+      } else if (roleName === 'tenant') {
+        const tenant = await this.tenantsService.findByUserId(user.id).catch(() => null);
+        registrationComplete = !!tenant;
+      } else {
+        registrationComplete = true;
+      }
     }
 
     const payloadResp = { 

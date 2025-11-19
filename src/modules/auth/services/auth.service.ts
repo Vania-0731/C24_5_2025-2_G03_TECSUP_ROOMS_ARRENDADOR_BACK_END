@@ -151,7 +151,6 @@ export class AuthService {
         user = await this.usersService.create({
           fullName: fullName || email,
           email,
-          profilePicture,
           googleId,
           isVerified: true,
           roleId: role.id,
@@ -167,9 +166,7 @@ export class AuthService {
     } else {
       const updates: any = {};
       if (!user.googleId && googleId) updates.googleId = googleId;
-      if (profilePicture && user.profilePicture !== profilePicture) updates.profilePicture = profilePicture;
       if (!user.isVerified) updates.isVerified = true;
-      // Cargar user con role para comparar
       const userWithRole = await this.usersService.findById(user.id);
       if (userWithRole.role?.name !== desiredRoleName) {
         updates.roleId = role.id;
@@ -180,19 +177,8 @@ export class AuthService {
         updated = true;
       }
     }
-
-    try {
-      const userWithRole = await this.usersService.findById(user.id);
-      if (userWithRole.role?.name === 'tenant') {
-        await this.tenantsService.ensureExistsForUser(user.id);
-      } else if (userWithRole.role?.name === 'landlord') {
-        await this.landlordsService.ensureExistsForUser(user.id);
-      }
-    } catch (_) {}
-
     return { user, created, updated };
   }
-
   async completeRegistration(userId: string, registrationData: any): Promise<User> {
     return await this.usersService.update(userId, registrationData);
   }

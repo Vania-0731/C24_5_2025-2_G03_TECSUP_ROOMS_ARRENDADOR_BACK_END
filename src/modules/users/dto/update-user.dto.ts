@@ -4,10 +4,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsBoolean, IsUUID } from 'class-validator';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
-  @ApiPropertyOptional({ description: 'URL de la foto de perfil' })
+  @ApiPropertyOptional({ description: 'Foto de perfil en base64 (o null para eliminar)' })
   @IsOptional()
   @IsString()
-  profilePicture?: string;
+  profilePicture?: string | null;
 
   @ApiPropertyOptional({ description: 'ID de Google para OAuth2' })
   @IsOptional()
